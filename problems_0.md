@@ -1,4 +1,4 @@
-# VLM Backbone 
+# VLM Backbone (待整理)
 ## problem1: 冻结提取hidden state到底是什么，为什么要这样做
 ## 
 
@@ -7,3 +7,6 @@
 ## action chunk
 
 ## padding
+
+## Lecture of BC and DRL
+https://rail.eecs.berkeley.edu/deeprlcourse/resources/
