@@ -1,0 +1,28 @@
+{
+  "paths": {
+    "intrinsics_file": "E:\\code\\cv\\ROI\\intrinsics.ini",
+    "test_data_file": "E:\\code\\cv\\test_data\\test.json",
+    "test_data_dir": "E:\\code\\cv\\test_data",
+    "output_dir": "E:\\code\\cv\\ROI\\output"
+  },
+  "parameters": {
+    "roi_margin": 200,
+    "roi_margin_left": 100,
+    "roi_margin_right": 350,
+    "roi_margin_top": 250,
+    "roi_margin_bottom": 200,
+    "visualization_dpi": 150,
+    "visualization_figsize": [12, 8],
+    "enable_visualization": true,
+    "enable_roi_save": true,
+    "enable_visualization_save": true
+  },
+  "camera": {
+    "intrinsic_section": "ColorIntrinsic",
+    "coordinate_system": {
+      "z_axis_direction": "forward",
+      "note": "Z-axis direction: forward=forward (standard), downward=downward (custom)"
+    }
+  }
+}
+

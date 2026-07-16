@@ -1,0 +1,117 @@
+# ============================================================================
+# Qwen3-VL Prompt 配置文件
+# ============================================================================
+# 此文件定义了 VLM 的 prompt 构建方式
+# 所有配置项都可以被代码传入的参数覆盖
+#
+# 使用示例:
+#   from qwen3_vl import Qwen3VLBackbone, load_prompt_config
+#   
+#   # 使用默认配置
+#   backbone = Qwen3VLBackbone()
+#   
+#   # 使用自定义配置
+#   backbone = Qwen3VLBackbone(
+#       prompt_template="What action should the robot take to {instruction}?",
+#       content_order=["image", "image", "text"]
+#   )
+# ============================================================================
+
+# Prompt 模板配置
+prompt:
+  # 默认的 prompt 模板
+  # 可用占位符:
+  #   {instruction} - 任务指令/描述
+  #   {task} - 同 instruction
+  template: "What action should the robot take to {instruction}?"
+  
+  # 是否将任务描述转为小写
+  lowercase_instruction: true
+  
+  # 是否添加 generation prompt (用于 Qwen chat 模板)
+  add_generation_prompt: true
+
+# 消息内容顺序配置
+# 定义 user message 中各个元素的顺序
+# 支持的类型: "image", "text"
+# 默认顺序: [agentview_image, wrist_image, text_prompt]
+# 可被 model_selector.py 的 --content_order 参数覆盖
+content:
+  # 内容顺序列表
+  # 可以自定义图像和文本的排列顺序
+  # key 中的 "agentview", "wrist" 可被 --image_keys 覆盖
+  order:
+    - type: "image"
+      key: "agentview"  # 第一张图像 (agentview)
+    - type: "image" 
+      key: "wrist"      # 第二张图像 (wrist)
+    - type: "text"
+      key: "prompt"     # 文本 prompt
+  
+  # 预设的常用顺序模板
+  # 可被 --content_order 参数覆盖
+  presets:
+    # 标准顺序: 图像在前，文本在后 (默认)
+    standard:
+      - {type: "image", key: "agentview"}
+      - {type: "image", key: "wrist"}
+      - {type: "text", key: "prompt"}
+    
+    # 文本在前
+    text_first:
+      - {type: "text", key: "prompt"}
+      - {type: "image", key: "agentview"}
+      - {type: "image", key: "wrist"}
+    
+    # 单图模式 (只用 agentview)
+    single_image:
+      - {type: "image", key: "agentview"}
+      - {type: "text", key: "prompt"}
+    
+    # 交叉模式
+    interleaved:
+      - {type: "image", key: "agentview"}
+      - {type: "text", key: "prompt"}
+      - {type: "image", key: "wrist"}
+
+# 图像处理配置
+images:
+  # 最大图像数量
+  max_images: 2
+  
+  # 是否需要翻转图像 (180度旋转)
+  # 可被 --flip_images / --no_flip_images 覆盖
+  flip_images: true
+  
+  # resize 目标尺寸 (null 表示不 resize)
+  resize_to: null
+  
+  # 图像键名映射 (可被 --image_keys 覆盖)
+  keys:
+    agentview: "agentview"
+    wrist: "wrist"
+
+# VLM 模型配置
+model:
+  # 默认提取的隐藏层
+  # 单层: [14] 
+  # 多层: [14, 15, 16]
+  default_layers: [14]
+  
+  # 数据类型
+  dtype: "bfloat16"
+  
+  # 是否使用 trust_remote_code
+  # transformers >= 4.45 已原生支持 Qwen3-VL，无需设为 true
+  trust_remote_code: false
+
+# Chat 模板配置
+chat:
+  # 角色设置
+  system_role: null  # null 表示不使用 system message
+  user_role: "user"
+  
+  # tokenize 设置
+  tokenize: true
+  return_tensors: "pt"
+

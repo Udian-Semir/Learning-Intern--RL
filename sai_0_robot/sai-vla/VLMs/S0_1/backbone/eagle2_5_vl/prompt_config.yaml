@@ -1,0 +1,117 @@
+# Eagle 2.5 VL Prompt 配置文件
+# 
+# 默认模型路径 (GR00T-N1.5-3B):
+#   /home/sythoid_01/.cache/huggingface/hub/models--nvidia--GR00T-N1.5-3B/snapshots/869830fc749c35f34771aa5209f923ac57e4564e
+#
+# 所有配置项都可以在代码中被覆盖
+# 配置优先级: 代码参数 > 此文件 > 默认值
+
+# ============================================================================
+# Prompt 配置
+# ============================================================================
+prompt:
+  # Prompt 模板，支持 {instruction} 或 {task} 占位符
+  template: "What action should the robot take to {instruction}?"
+  
+  # 是否将任务描述转为小写
+  lowercase_instruction: true
+  
+  # 是否添加 generation prompt (对于聊天模型)
+  add_generation_prompt: true
+
+# ============================================================================
+# 内容顺序配置
+# ============================================================================
+content:
+  # 内容顺序列表
+  # type: "image" 或 "text"
+  # key: 
+  #   - 对于 image: "agentview", "wrist" 等 (可被 --image_keys 覆盖)
+  #   - 对于 text: "prompt" (使用上面定义的 prompt 模板)
+  order:
+    - type: image
+      key: agentview
+    - type: image
+      key: wrist
+    - type: text
+      key: prompt
+
+  # 预设的常用顺序模板
+  # 可被 model_selector.py 的 --content_order 参数覆盖
+  presets:
+    # 标准顺序: 图像在前，文本在后 (默认)
+    standard:
+      - {type: "image", key: "agentview"}
+      - {type: "image", key: "wrist"}
+      - {type: "text", key: "prompt"}
+    
+    # 文本在前
+    text_first:
+      - {type: "text", key: "prompt"}
+      - {type: "image", key: "agentview"}
+      - {type: "image", key: "wrist"}
+    
+    # 单图模式 (只用第一张图)
+    single_image:
+      - {type: "image", key: "agentview"}
+      - {type: "text", key: "prompt"}
+    
+    # 交叉模式
+    interleaved:
+      - {type: "image", key: "agentview"}
+      - {type: "text", key: "prompt"}
+      - {type: "image", key: "wrist"}
+
+# ============================================================================
+# 图像配置
+# ============================================================================
+images:
+  # 最大图像数量
+  max_images: 2
+  
+  # 是否翻转图像 (180度旋转)
+  # 这与 LIBERO 数据集的图像方向一致
+  # 可被 --flip_images / --no_flip_images 覆盖
+  flip_images: true
+  
+  # resize 目标尺寸 (null 表示不 resize)
+  resize_to: null
+  
+  # 图像键名映射 (可被 --image_keys 覆盖)
+  keys:
+    agentview: "agentview"
+    wrist: "wrist"
+
+# ============================================================================
+# 模型配置
+# ============================================================================
+model:
+  # 默认提取的隐藏层 (Eagle 使用负数索引)
+  default_layers: [-1]
+  
+  # 数据类型
+  dtype: "bfloat16"
+  
+  # 是否使用 trust_remote_code
+  trust_remote_code: true
+
+# ============================================================================
+# Eagle 特定配置 (与原始 Eagle 2.5 VL config.json 保持一致)
+# ============================================================================
+eagle:
+  # 是否使用 pixel shuffle
+  use_pixel_shuffle: false
+  
+  # downsample ratio
+  downsample_ratio: 0.5
+  
+  # MLP connector 层数 (原始模型用 1 层 Linear)
+  mlp_connector_layers: 1
+  
+  # 动态 tile 配置
+  min_dynamic_tiles: 1
+  max_dynamic_tiles: 12
+  
+  # 是否使用 thumbnail
+  use_thumbnail: true
+

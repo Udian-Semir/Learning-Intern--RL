@@ -1,0 +1,1341 @@
+====================================================================================================
+SAFETENSORS 模型结构分析报告
+====================================================================================================
+分析目录: /home/sythoid_01/.cache/huggingface/hub/models--nvidia--GR00T-N1.6-3B/snapshots/d0814e7ecb19202e7c8468b46098b0b7ef3a6d61
+生成时间: 2025-12-29 16:46:11
+文件数量: 2
+
+----------------------------------------------------------------------------------------------------
+总体统计
+----------------------------------------------------------------------------------------------------
+  总张量数量: 1,106
+  总参数数量: 3,286,608,832 (3.29B)
+  总模型大小: 6.12 GB
+
+数据类型分布:
+  bfloat16:
+    张量数: 1,106
+    参数数: 3,286,608,832 (3.29B)
+    大小: 6.12 GB
+
+====================================================================================================
+模型架构 (Model Architecture)
+====================================================================================================
+
+Model(
+  (action_head): ActionHead(
+    (action_decoder): ActionDecoder(
+      (layer1): Layer1(
+        (W): Module(tensors=1)
+        (b): Module(tensors=1)
+      )
+      (layer2): Layer2(
+        (W): Module(tensors=1)
+        (b): Module(tensors=1)
+      )
+    )
+    (action_encoder): ActionEncoder(
+      (W1): W1(
+        (W): Module(tensors=1)
+        (b): Module(tensors=1)
+      )
+      (W2): W2(
+        (W): Module(tensors=1)
+        (b): Module(tensors=1)
+      )
+      (W3): W3(
+        (W): Module(tensors=1)
+        (b): Module(tensors=1)
+      )
+    )
+    (model): Model(
+      (proj_out_1): Linear(in_features=1536, out_features=3072, bias=True)
+      (proj_out_2): Linear(in_features=1536, out_features=1024, bias=True)
+      (timestep_encoder): TimestepEncoder(
+        (timestep_embedder): Embeddings(
+          (linear_1): Linear(in_features=256, out_features=1536, bias=True)
+          (linear_2): Linear(in_features=1536, out_features=1536, bias=True)
+        )
+      )
+      (transformer_blocks): TransformerBlocks(
+        (0-31): 32 x Block(
+          (attn1): Attn1(
+            (to_k): Linear(in_features=2048, out_features=1536, bias=True)
+            (to_out): ToOut(
+              (0): Block(
+              )
+            )
+            (to_q): Linear(in_features=1536, out_features=1536, bias=True)
+            (to_v): Linear(in_features=2048, out_features=1536, bias=True)
+          )
+          (ff): Ff(
+            (net): Net(
+              (0-2): 2 x Block(
+                (proj): Linear(in_features=1536, out_features=6144, bias=True)
+              )
+            )
+          )
+          (norm1): Norm1(
+            (linear): Linear(in_features=1536, out_features=3072, bias=True)
+          )
+        )
+      )
+    )
+    (position_embedding): Embedding(1024, 1536)
+    (state_encoder): StateEncoder(
+      (layer1): Layer1(
+        (W): Module(tensors=1)
+        (b): Module(tensors=1)
+      )
+      (layer2): Layer2(
+        (W): Module(tensors=1)
+        (b): Module(tensors=1)
+      )
+    )
+    (vlln): Parameter(2048)
+  )
+  (backbone): Backbone(
+    (model): Model(
+      (language_model): LanguageModel(
+        (lm_head): Linear(in_features=2048, out_features=151680, bias=False)
+        (model): Model(
+          (embed_tokens): Embedding(151680, 2048)
+          (layers): ModuleList(
+            (0-15): 16 x TransformerBlock(
+              (input_layernorm): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+              (mlp): MLP(
+                (down_proj): Linear(in_features=6144, out_features=2048, bias=False)
+                (gate_proj): Linear(in_features=2048, out_features=6144, bias=False)
+                (up_proj): Linear(in_features=2048, out_features=6144, bias=False)
+              )
+              (post_attention_layernorm): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+              (self_attn): Attention(
+                (k_norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+                (k_proj): Linear(in_features=2048, out_features=1024, bias=False)
+                (o_proj): Linear(in_features=2048, out_features=2048, bias=False)
+                (q_norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+                (q_proj): Linear(in_features=2048, out_features=2048, bias=False)
+                (v_proj): Linear(in_features=2048, out_features=1024, bias=False)
+              )
+            )
+          )
+          (norm): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+        )
+      )
+      (mlp1): Mlp1(
+        (0-3): 3 x Block(
+        )
+      )
+      (vision_model): VisionModel(
+        (vision_model): VisionModel(
+          (embeddings): Embeddings(
+            (patch_embedding): Linear(in_features=588, out_features=1152, bias=True)
+            (position_embedding): Embedding(256, 1152)
+          )
+          (encoder): ModuleList(
+            (layers): ModuleList(
+              (0-26): 27 x VisionBlock(
+                (layer_norm1): LayerNorm((1152,), eps=1e-05, elementwise_affine=True)
+                (layer_norm2): LayerNorm((1152,), eps=1e-05, elementwise_affine=True)
+                (mlp): MLP(
+                  (fc1): Linear(in_features=1152, out_features=4304, bias=True)
+                  (fc2): Linear(in_features=4304, out_features=1152, bias=True)
+                )
+                (self_attn): Attention(
+                  (k_proj): Linear(in_features=1152, out_features=1152, bias=True)
+                  (out_proj): Linear(in_features=1152, out_features=1152, bias=True)
+                  (q_proj): Linear(in_features=1152, out_features=1152, bias=True)
+                  (v_proj): Linear(in_features=1152, out_features=1152, bias=True)
+                )
+              )
+            )
+          )
+          (head): Head(
+            (attention): Attention(
+              (in_proj_bias): Module(tensors=1)
+              (in_proj_weight): Module(tensors=1)
+              (out_proj): Linear(in_features=1152, out_features=1152, bias=True)
+            )
+            (layernorm): LayerNorm((1152,), eps=1e-05, elementwise_affine=True)
+            (mlp): MLP(
+              (fc1): Linear(in_features=1152, out_features=4304, bias=True)
+              (fc2): Linear(in_features=4304, out_features=1152, bias=True)
+            )
+            (probe): Module(tensors=1)
+          )
+          (post_layernorm): LayerNorm((1152,), eps=1e-05, elementwise_affine=True)
+        )
+      )
+    )
+  )
+)
+
+====================================================================================================
+层级参数统计 (Layer Parameters)
+====================================================================================================
+
+模块                                                           张量数        参数量                  大小             
+----------------------------------------------------------------------------------------------------
+backbone.model.language_model                                179          1,426,659,328 (   1.43B)      2.66 GB
+action_head.model.transformer_blocks                         448          1,082,671,104 (   1.08B)      2.02 GB
+backbone.model.vision_model                                  448            427,680,704 ( 427.68M)    815.74 MB
+action_head.action_encoder.W2                                2              151,044,096 ( 151.04M)    288.09 MB
+action_head.action_encoder.W3                                2               75,546,624 (  75.55M)    144.09 MB
+action_head.state_encoder.layer2                             2               50,380,800 (  50.38M)     96.09 MB
+action_head.action_decoder.layer1                            2               33,587,200 (  33.59M)     64.06 MB
+backbone.model.mlp1                                          6               13,644,800 (  13.64M)     26.03 MB
+action_head.action_encoder.W1                                2                6,340,608 (   6.34M)     12.09 MB
+action_head.model.proj_out_1                                 2                4,721,664 (   4.72M)      9.01 MB
+action_head.state_encoder.layer1                             2                4,227,072 (   4.23M)      8.06 MB
+action_head.action_decoder.layer2                            2                4,198,400 (   4.20M)      8.01 MB
+action_head.model.timestep_encoder                           4                2,755,584 (   2.76M)      5.26 MB
+action_head.model.proj_out_2                                 2                1,573,888 (   1.57M)      3.00 MB
+action_head.position_embedding.weight                        1                1,572,864 (   1.57M)      3.00 MB
+action_head.vlln.bias                                        1                    2,048 (   2.05K)      4.00 KB
+action_head.vlln.weight                                      1                    2,048 (   2.05K)      4.00 KB
+
+====================================================================================================
+文件 [1/2]: model-00001-of-00002.safetensors
+====================================================================================================
+路径: /home/sythoid_01/.cache/huggingface/hub/models--nvidia--GR00T-N1.6-3B/snapshots/d0814e7ecb19202e7c8468b46098b0b7ef3a6d61/model-00001-of-00002.safetensors
+文件大小: 4.65 GB
+张量数量: 899
+总参数量: 2,495,480,768 (2.50B)
+模型大小: 4.65 GB
+
+元数据:
+  format: pt
+
+----------------------------------------------------------------------------------------------------
+张量详情:
+----------------------------------------------------------------------------------------------------
+序号       名称                                                                     形状                             类型           参数量             大小          
+----------------------------------------------------------------------------------------------------
+1        action_head.model.timestep_encoder.timestep_embedder.linear_1.bias     [1536]                         bfloat16     1,536           3.00 KB     
+2        action_head.model.timestep_encoder.timestep_embedder.linear_1.weight   [1536, 256]                    bfloat16     393,216         768.00 KB   
+3        action_head.model.timestep_encoder.timestep_embedder.linear_2.bias     [1536]                         bfloat16     1,536           3.00 KB     
+4        action_head.model.timestep_encoder.timestep_embedder.linear_2.weight   [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+5        action_head.model.transformer_blocks.0.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+6        action_head.model.transformer_blocks.0.attn1.to_k.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+7        action_head.model.transformer_blocks.0.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+8        action_head.model.transformer_blocks.0.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+9        action_head.model.transformer_blocks.0.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+10       action_head.model.transformer_blocks.0.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+11       action_head.model.transformer_blocks.0.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+12       action_head.model.transformer_blocks.0.attn1.to_v.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+13       action_head.model.transformer_blocks.0.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+14       action_head.model.transformer_blocks.0.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+15       action_head.model.transformer_blocks.0.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+16       action_head.model.transformer_blocks.0.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+17       action_head.model.transformer_blocks.0.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+18       action_head.model.transformer_blocks.0.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+19       action_head.model.transformer_blocks.1.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+20       action_head.model.transformer_blocks.1.attn1.to_k.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+21       action_head.model.transformer_blocks.1.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+22       action_head.model.transformer_blocks.1.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+23       action_head.model.transformer_blocks.1.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+24       action_head.model.transformer_blocks.1.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+25       action_head.model.transformer_blocks.1.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+26       action_head.model.transformer_blocks.1.attn1.to_v.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+27       action_head.model.transformer_blocks.1.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+28       action_head.model.transformer_blocks.1.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+29       action_head.model.transformer_blocks.1.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+30       action_head.model.transformer_blocks.1.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+31       action_head.model.transformer_blocks.1.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+32       action_head.model.transformer_blocks.1.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+33       action_head.model.transformer_blocks.10.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+34       action_head.model.transformer_blocks.10.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+35       action_head.model.transformer_blocks.10.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+36       action_head.model.transformer_blocks.10.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+37       action_head.model.transformer_blocks.10.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+38       action_head.model.transformer_blocks.10.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+39       action_head.model.transformer_blocks.10.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+40       action_head.model.transformer_blocks.10.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+41       action_head.model.transformer_blocks.10.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+42       action_head.model.transformer_blocks.10.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+43       action_head.model.transformer_blocks.10.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+44       action_head.model.transformer_blocks.10.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+45       action_head.model.transformer_blocks.10.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+46       action_head.model.transformer_blocks.10.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+47       action_head.model.transformer_blocks.11.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+48       action_head.model.transformer_blocks.11.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+49       action_head.model.transformer_blocks.11.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+50       action_head.model.transformer_blocks.11.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+51       action_head.model.transformer_blocks.11.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+52       action_head.model.transformer_blocks.11.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+53       action_head.model.transformer_blocks.11.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+54       action_head.model.transformer_blocks.11.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+55       action_head.model.transformer_blocks.11.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+56       action_head.model.transformer_blocks.11.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+57       action_head.model.transformer_blocks.11.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+58       action_head.model.transformer_blocks.11.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+59       action_head.model.transformer_blocks.11.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+60       action_head.model.transformer_blocks.11.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+61       action_head.model.transformer_blocks.12.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+62       action_head.model.transformer_blocks.12.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+63       action_head.model.transformer_blocks.12.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+64       action_head.model.transformer_blocks.12.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+65       action_head.model.transformer_blocks.12.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+66       action_head.model.transformer_blocks.12.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+67       action_head.model.transformer_blocks.12.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+68       action_head.model.transformer_blocks.12.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+69       action_head.model.transformer_blocks.12.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+70       action_head.model.transformer_blocks.12.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+71       action_head.model.transformer_blocks.12.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+72       action_head.model.transformer_blocks.12.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+73       action_head.model.transformer_blocks.12.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+74       action_head.model.transformer_blocks.12.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+75       action_head.model.transformer_blocks.13.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+76       action_head.model.transformer_blocks.13.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+77       action_head.model.transformer_blocks.13.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+78       action_head.model.transformer_blocks.13.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+79       action_head.model.transformer_blocks.13.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+80       action_head.model.transformer_blocks.13.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+81       action_head.model.transformer_blocks.13.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+82       action_head.model.transformer_blocks.13.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+83       action_head.model.transformer_blocks.13.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+84       action_head.model.transformer_blocks.13.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+85       action_head.model.transformer_blocks.13.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+86       action_head.model.transformer_blocks.13.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+87       action_head.model.transformer_blocks.13.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+88       action_head.model.transformer_blocks.13.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+89       action_head.model.transformer_blocks.14.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+90       action_head.model.transformer_blocks.14.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+91       action_head.model.transformer_blocks.14.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+92       action_head.model.transformer_blocks.14.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+93       action_head.model.transformer_blocks.14.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+94       action_head.model.transformer_blocks.14.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+95       action_head.model.transformer_blocks.14.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+96       action_head.model.transformer_blocks.14.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+97       action_head.model.transformer_blocks.14.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+98       action_head.model.transformer_blocks.14.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+99       action_head.model.transformer_blocks.14.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+100      action_head.model.transformer_blocks.14.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+101      action_head.model.transformer_blocks.14.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+102      action_head.model.transformer_blocks.14.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+103      action_head.model.transformer_blocks.15.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+104      action_head.model.transformer_blocks.15.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+105      action_head.model.transformer_blocks.15.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+106      action_head.model.transformer_blocks.15.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+107      action_head.model.transformer_blocks.15.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+108      action_head.model.transformer_blocks.15.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+109      action_head.model.transformer_blocks.15.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+110      action_head.model.transformer_blocks.15.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+111      action_head.model.transformer_blocks.15.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+112      action_head.model.transformer_blocks.15.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+113      action_head.model.transformer_blocks.15.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+114      action_head.model.transformer_blocks.15.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+115      action_head.model.transformer_blocks.15.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+116      action_head.model.transformer_blocks.15.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+117      action_head.model.transformer_blocks.16.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+118      action_head.model.transformer_blocks.16.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+119      action_head.model.transformer_blocks.16.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+120      action_head.model.transformer_blocks.16.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+121      action_head.model.transformer_blocks.16.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+122      action_head.model.transformer_blocks.16.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+123      action_head.model.transformer_blocks.16.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+124      action_head.model.transformer_blocks.16.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+125      action_head.model.transformer_blocks.16.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+126      action_head.model.transformer_blocks.16.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+127      action_head.model.transformer_blocks.16.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+128      action_head.model.transformer_blocks.16.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+129      action_head.model.transformer_blocks.16.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+130      action_head.model.transformer_blocks.16.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+131      action_head.model.transformer_blocks.17.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+132      action_head.model.transformer_blocks.17.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+133      action_head.model.transformer_blocks.17.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+134      action_head.model.transformer_blocks.17.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+135      action_head.model.transformer_blocks.17.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+136      action_head.model.transformer_blocks.17.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+137      action_head.model.transformer_blocks.17.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+138      action_head.model.transformer_blocks.17.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+139      action_head.model.transformer_blocks.17.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+140      action_head.model.transformer_blocks.17.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+141      action_head.model.transformer_blocks.17.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+142      action_head.model.transformer_blocks.17.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+143      action_head.model.transformer_blocks.17.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+144      action_head.model.transformer_blocks.17.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+145      action_head.model.transformer_blocks.18.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+146      action_head.model.transformer_blocks.18.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+147      action_head.model.transformer_blocks.18.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+148      action_head.model.transformer_blocks.18.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+149      action_head.model.transformer_blocks.18.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+150      action_head.model.transformer_blocks.18.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+151      action_head.model.transformer_blocks.18.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+152      action_head.model.transformer_blocks.18.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+153      action_head.model.transformer_blocks.18.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+154      action_head.model.transformer_blocks.18.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+155      action_head.model.transformer_blocks.2.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+156      action_head.model.transformer_blocks.2.attn1.to_k.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+157      action_head.model.transformer_blocks.2.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+158      action_head.model.transformer_blocks.2.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+159      action_head.model.transformer_blocks.2.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+160      action_head.model.transformer_blocks.2.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+161      action_head.model.transformer_blocks.2.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+162      action_head.model.transformer_blocks.2.attn1.to_v.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+163      action_head.model.transformer_blocks.2.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+164      action_head.model.transformer_blocks.2.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+165      action_head.model.transformer_blocks.2.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+166      action_head.model.transformer_blocks.2.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+167      action_head.model.transformer_blocks.2.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+168      action_head.model.transformer_blocks.2.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+169      action_head.model.transformer_blocks.3.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+170      action_head.model.transformer_blocks.3.attn1.to_k.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+171      action_head.model.transformer_blocks.3.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+172      action_head.model.transformer_blocks.3.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+173      action_head.model.transformer_blocks.3.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+174      action_head.model.transformer_blocks.3.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+175      action_head.model.transformer_blocks.3.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+176      action_head.model.transformer_blocks.3.attn1.to_v.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+177      action_head.model.transformer_blocks.3.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+178      action_head.model.transformer_blocks.3.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+179      action_head.model.transformer_blocks.3.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+180      action_head.model.transformer_blocks.3.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+181      action_head.model.transformer_blocks.3.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+182      action_head.model.transformer_blocks.3.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+183      action_head.model.transformer_blocks.4.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+184      action_head.model.transformer_blocks.4.attn1.to_k.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+185      action_head.model.transformer_blocks.4.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+186      action_head.model.transformer_blocks.4.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+187      action_head.model.transformer_blocks.4.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+188      action_head.model.transformer_blocks.4.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+189      action_head.model.transformer_blocks.4.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+190      action_head.model.transformer_blocks.4.attn1.to_v.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+191      action_head.model.transformer_blocks.4.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+192      action_head.model.transformer_blocks.4.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+193      action_head.model.transformer_blocks.4.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+194      action_head.model.transformer_blocks.4.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+195      action_head.model.transformer_blocks.4.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+196      action_head.model.transformer_blocks.4.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+197      action_head.model.transformer_blocks.5.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+198      action_head.model.transformer_blocks.5.attn1.to_k.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+199      action_head.model.transformer_blocks.5.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+200      action_head.model.transformer_blocks.5.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+201      action_head.model.transformer_blocks.5.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+202      action_head.model.transformer_blocks.5.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+203      action_head.model.transformer_blocks.5.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+204      action_head.model.transformer_blocks.5.attn1.to_v.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+205      action_head.model.transformer_blocks.5.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+206      action_head.model.transformer_blocks.5.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+207      action_head.model.transformer_blocks.5.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+208      action_head.model.transformer_blocks.5.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+209      action_head.model.transformer_blocks.5.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+210      action_head.model.transformer_blocks.5.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+211      action_head.model.transformer_blocks.6.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+212      action_head.model.transformer_blocks.6.attn1.to_k.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+213      action_head.model.transformer_blocks.6.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+214      action_head.model.transformer_blocks.6.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+215      action_head.model.transformer_blocks.6.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+216      action_head.model.transformer_blocks.6.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+217      action_head.model.transformer_blocks.6.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+218      action_head.model.transformer_blocks.6.attn1.to_v.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+219      action_head.model.transformer_blocks.6.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+220      action_head.model.transformer_blocks.6.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+221      action_head.model.transformer_blocks.6.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+222      action_head.model.transformer_blocks.6.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+223      action_head.model.transformer_blocks.6.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+224      action_head.model.transformer_blocks.6.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+225      action_head.model.transformer_blocks.7.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+226      action_head.model.transformer_blocks.7.attn1.to_k.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+227      action_head.model.transformer_blocks.7.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+228      action_head.model.transformer_blocks.7.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+229      action_head.model.transformer_blocks.7.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+230      action_head.model.transformer_blocks.7.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+231      action_head.model.transformer_blocks.7.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+232      action_head.model.transformer_blocks.7.attn1.to_v.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+233      action_head.model.transformer_blocks.7.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+234      action_head.model.transformer_blocks.7.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+235      action_head.model.transformer_blocks.7.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+236      action_head.model.transformer_blocks.7.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+237      action_head.model.transformer_blocks.7.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+238      action_head.model.transformer_blocks.7.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+239      action_head.model.transformer_blocks.8.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+240      action_head.model.transformer_blocks.8.attn1.to_k.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+241      action_head.model.transformer_blocks.8.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+242      action_head.model.transformer_blocks.8.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+243      action_head.model.transformer_blocks.8.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+244      action_head.model.transformer_blocks.8.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+245      action_head.model.transformer_blocks.8.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+246      action_head.model.transformer_blocks.8.attn1.to_v.weight               [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+247      action_head.model.transformer_blocks.8.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+248      action_head.model.transformer_blocks.8.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+249      action_head.model.transformer_blocks.8.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+250      action_head.model.transformer_blocks.8.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+251      action_head.model.transformer_blocks.8.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+252      action_head.model.transformer_blocks.8.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+253      action_head.model.transformer_blocks.9.attn1.to_k.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+254      action_head.model.transformer_blocks.9.attn1.to_k.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+255      action_head.model.transformer_blocks.9.attn1.to_out.0.bias             [1536]                         bfloat16     1,536           3.00 KB     
+256      action_head.model.transformer_blocks.9.attn1.to_out.0.weight           [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+257      action_head.model.transformer_blocks.9.attn1.to_q.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+258      action_head.model.transformer_blocks.9.attn1.to_q.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+259      action_head.model.transformer_blocks.9.attn1.to_v.bias                 [1536]                         bfloat16     1,536           3.00 KB     
+260      action_head.model.transformer_blocks.9.attn1.to_v.weight               [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+261      action_head.model.transformer_blocks.9.ff.net.0.proj.bias              [6144]                         bfloat16     6,144           12.00 KB    
+262      action_head.model.transformer_blocks.9.ff.net.0.proj.weight            [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+263      action_head.model.transformer_blocks.9.ff.net.2.bias                   [1536]                         bfloat16     1,536           3.00 KB     
+264      action_head.model.transformer_blocks.9.ff.net.2.weight                 [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+265      action_head.model.transformer_blocks.9.norm1.linear.bias               [3072]                         bfloat16     3,072           6.00 KB     
+266      action_head.model.transformer_blocks.9.norm1.linear.weight             [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+267      backbone.model.language_model.lm_head.weight                           [151680, 2048]                 bfloat16     310,640,640     592.50 MB   
+268      backbone.model.language_model.model.embed_tokens.weight                [151680, 2048]                 bfloat16     310,640,640     592.50 MB   
+269      backbone.model.language_model.model.layers.0.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+270      backbone.model.language_model.model.layers.0.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+271      backbone.model.language_model.model.layers.0.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+272      backbone.model.language_model.model.layers.0.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+273      ...del.language_model.model.layers.0.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+274      backbone.model.language_model.model.layers.0.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+275      backbone.model.language_model.model.layers.0.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+276      backbone.model.language_model.model.layers.0.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+277      backbone.model.language_model.model.layers.0.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+278      backbone.model.language_model.model.layers.0.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+279      backbone.model.language_model.model.layers.0.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+280      backbone.model.language_model.model.layers.1.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+281      backbone.model.language_model.model.layers.1.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+282      backbone.model.language_model.model.layers.1.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+283      backbone.model.language_model.model.layers.1.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+284      ...del.language_model.model.layers.1.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+285      backbone.model.language_model.model.layers.1.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+286      backbone.model.language_model.model.layers.1.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+287      backbone.model.language_model.model.layers.1.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+288      backbone.model.language_model.model.layers.1.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+289      backbone.model.language_model.model.layers.1.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+290      backbone.model.language_model.model.layers.1.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+291      backbone.model.language_model.model.layers.10.input_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+292      backbone.model.language_model.model.layers.10.mlp.down_proj.weight     [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+293      backbone.model.language_model.model.layers.10.mlp.gate_proj.weight     [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+294      backbone.model.language_model.model.layers.10.mlp.up_proj.weight       [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+295      ...el.language_model.model.layers.10.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+296      ...bone.model.language_model.model.layers.10.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+297      ...bone.model.language_model.model.layers.10.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+298      ...bone.model.language_model.model.layers.10.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+299      ...bone.model.language_model.model.layers.10.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+300      ...bone.model.language_model.model.layers.10.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+301      ...bone.model.language_model.model.layers.10.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+302      backbone.model.language_model.model.layers.11.input_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+303      backbone.model.language_model.model.layers.11.mlp.down_proj.weight     [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+304      backbone.model.language_model.model.layers.11.mlp.gate_proj.weight     [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+305      backbone.model.language_model.model.layers.11.mlp.up_proj.weight       [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+306      ...el.language_model.model.layers.11.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+307      ...bone.model.language_model.model.layers.11.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+308      ...bone.model.language_model.model.layers.11.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+309      ...bone.model.language_model.model.layers.11.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+310      ...bone.model.language_model.model.layers.11.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+311      ...bone.model.language_model.model.layers.11.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+312      ...bone.model.language_model.model.layers.11.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+313      backbone.model.language_model.model.layers.12.input_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+314      backbone.model.language_model.model.layers.12.mlp.down_proj.weight     [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+315      backbone.model.language_model.model.layers.12.mlp.gate_proj.weight     [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+316      backbone.model.language_model.model.layers.12.mlp.up_proj.weight       [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+317      ...el.language_model.model.layers.12.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+318      ...bone.model.language_model.model.layers.12.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+319      ...bone.model.language_model.model.layers.12.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+320      ...bone.model.language_model.model.layers.12.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+321      ...bone.model.language_model.model.layers.12.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+322      ...bone.model.language_model.model.layers.12.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+323      ...bone.model.language_model.model.layers.12.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+324      backbone.model.language_model.model.layers.13.input_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+325      backbone.model.language_model.model.layers.13.mlp.down_proj.weight     [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+326      backbone.model.language_model.model.layers.13.mlp.gate_proj.weight     [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+327      backbone.model.language_model.model.layers.13.mlp.up_proj.weight       [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+328      ...el.language_model.model.layers.13.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+329      ...bone.model.language_model.model.layers.13.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+330      ...bone.model.language_model.model.layers.13.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+331      ...bone.model.language_model.model.layers.13.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+332      ...bone.model.language_model.model.layers.13.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+333      ...bone.model.language_model.model.layers.13.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+334      ...bone.model.language_model.model.layers.13.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+335      backbone.model.language_model.model.layers.14.input_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+336      backbone.model.language_model.model.layers.14.mlp.down_proj.weight     [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+337      backbone.model.language_model.model.layers.14.mlp.gate_proj.weight     [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+338      backbone.model.language_model.model.layers.14.mlp.up_proj.weight       [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+339      ...el.language_model.model.layers.14.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+340      ...bone.model.language_model.model.layers.14.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+341      ...bone.model.language_model.model.layers.14.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+342      ...bone.model.language_model.model.layers.14.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+343      ...bone.model.language_model.model.layers.14.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+344      ...bone.model.language_model.model.layers.14.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+345      ...bone.model.language_model.model.layers.14.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+346      backbone.model.language_model.model.layers.15.input_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+347      backbone.model.language_model.model.layers.15.mlp.down_proj.weight     [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+348      backbone.model.language_model.model.layers.15.mlp.gate_proj.weight     [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+349      backbone.model.language_model.model.layers.15.mlp.up_proj.weight       [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+350      ...el.language_model.model.layers.15.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+351      ...bone.model.language_model.model.layers.15.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+352      ...bone.model.language_model.model.layers.15.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+353      ...bone.model.language_model.model.layers.15.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+354      ...bone.model.language_model.model.layers.15.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+355      ...bone.model.language_model.model.layers.15.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+356      ...bone.model.language_model.model.layers.15.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+357      backbone.model.language_model.model.layers.2.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+358      backbone.model.language_model.model.layers.2.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+359      backbone.model.language_model.model.layers.2.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+360      backbone.model.language_model.model.layers.2.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+361      ...del.language_model.model.layers.2.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+362      backbone.model.language_model.model.layers.2.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+363      backbone.model.language_model.model.layers.2.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+364      backbone.model.language_model.model.layers.2.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+365      backbone.model.language_model.model.layers.2.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+366      backbone.model.language_model.model.layers.2.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+367      backbone.model.language_model.model.layers.2.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+368      backbone.model.language_model.model.layers.3.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+369      backbone.model.language_model.model.layers.3.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+370      backbone.model.language_model.model.layers.3.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+371      backbone.model.language_model.model.layers.3.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+372      ...del.language_model.model.layers.3.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+373      backbone.model.language_model.model.layers.3.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+374      backbone.model.language_model.model.layers.3.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+375      backbone.model.language_model.model.layers.3.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+376      backbone.model.language_model.model.layers.3.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+377      backbone.model.language_model.model.layers.3.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+378      backbone.model.language_model.model.layers.3.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+379      backbone.model.language_model.model.layers.4.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+380      backbone.model.language_model.model.layers.4.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+381      backbone.model.language_model.model.layers.4.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+382      backbone.model.language_model.model.layers.4.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+383      ...del.language_model.model.layers.4.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+384      backbone.model.language_model.model.layers.4.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+385      backbone.model.language_model.model.layers.4.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+386      backbone.model.language_model.model.layers.4.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+387      backbone.model.language_model.model.layers.4.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+388      backbone.model.language_model.model.layers.4.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+389      backbone.model.language_model.model.layers.4.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+390      backbone.model.language_model.model.layers.5.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+391      backbone.model.language_model.model.layers.5.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+392      backbone.model.language_model.model.layers.5.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+393      backbone.model.language_model.model.layers.5.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+394      ...del.language_model.model.layers.5.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+395      backbone.model.language_model.model.layers.5.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+396      backbone.model.language_model.model.layers.5.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+397      backbone.model.language_model.model.layers.5.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+398      backbone.model.language_model.model.layers.5.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+399      backbone.model.language_model.model.layers.5.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+400      backbone.model.language_model.model.layers.5.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+401      backbone.model.language_model.model.layers.6.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+402      backbone.model.language_model.model.layers.6.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+403      backbone.model.language_model.model.layers.6.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+404      backbone.model.language_model.model.layers.6.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+405      ...del.language_model.model.layers.6.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+406      backbone.model.language_model.model.layers.6.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+407      backbone.model.language_model.model.layers.6.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+408      backbone.model.language_model.model.layers.6.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+409      backbone.model.language_model.model.layers.6.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+410      backbone.model.language_model.model.layers.6.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+411      backbone.model.language_model.model.layers.6.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+412      backbone.model.language_model.model.layers.7.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+413      backbone.model.language_model.model.layers.7.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+414      backbone.model.language_model.model.layers.7.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+415      backbone.model.language_model.model.layers.7.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+416      ...del.language_model.model.layers.7.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+417      backbone.model.language_model.model.layers.7.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+418      backbone.model.language_model.model.layers.7.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+419      backbone.model.language_model.model.layers.7.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+420      backbone.model.language_model.model.layers.7.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+421      backbone.model.language_model.model.layers.7.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+422      backbone.model.language_model.model.layers.7.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+423      backbone.model.language_model.model.layers.8.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+424      backbone.model.language_model.model.layers.8.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+425      backbone.model.language_model.model.layers.8.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+426      backbone.model.language_model.model.layers.8.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+427      ...del.language_model.model.layers.8.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+428      backbone.model.language_model.model.layers.8.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+429      backbone.model.language_model.model.layers.8.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+430      backbone.model.language_model.model.layers.8.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+431      backbone.model.language_model.model.layers.8.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+432      backbone.model.language_model.model.layers.8.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+433      backbone.model.language_model.model.layers.8.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+434      backbone.model.language_model.model.layers.9.input_layernorm.weight    [2048]                         bfloat16     2,048           4.00 KB     
+435      backbone.model.language_model.model.layers.9.mlp.down_proj.weight      [2048, 6144]                   bfloat16     12,582,912      24.00 MB    
+436      backbone.model.language_model.model.layers.9.mlp.gate_proj.weight      [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+437      backbone.model.language_model.model.layers.9.mlp.up_proj.weight        [6144, 2048]                   bfloat16     12,582,912      24.00 MB    
+438      ...del.language_model.model.layers.9.post_attention_layernorm.weight   [2048]                         bfloat16     2,048           4.00 KB     
+439      backbone.model.language_model.model.layers.9.self_attn.k_norm.weight   [128]                          bfloat16     128             256.00 B    
+440      backbone.model.language_model.model.layers.9.self_attn.k_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+441      backbone.model.language_model.model.layers.9.self_attn.o_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+442      backbone.model.language_model.model.layers.9.self_attn.q_norm.weight   [128]                          bfloat16     128             256.00 B    
+443      backbone.model.language_model.model.layers.9.self_attn.q_proj.weight   [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+444      backbone.model.language_model.model.layers.9.self_attn.v_proj.weight   [1024, 2048]                   bfloat16     2,097,152       4.00 MB     
+445      backbone.model.language_model.model.norm.weight                        [2048]                         bfloat16     2,048           4.00 KB     
+446      backbone.model.mlp1.0.bias                                             [4608]                         bfloat16     4,608           9.00 KB     
+447      backbone.model.mlp1.0.weight                                           [4608]                         bfloat16     4,608           9.00 KB     
+448      backbone.model.mlp1.1.bias                                             [2048]                         bfloat16     2,048           4.00 KB     
+449      backbone.model.mlp1.1.weight                                           [2048, 4608]                   bfloat16     9,437,184       18.00 MB    
+450      backbone.model.mlp1.3.bias                                             [2048]                         bfloat16     2,048           4.00 KB     
+451      backbone.model.mlp1.3.weight                                           [2048, 2048]                   bfloat16     4,194,304       8.00 MB     
+452      ...e.model.vision_model.vision_model.embeddings.patch_embedding.bias   [1152]                         bfloat16     1,152           2.25 KB     
+453      ...model.vision_model.vision_model.embeddings.patch_embedding.weight   [1152, 588]                    bfloat16     677,376         1.29 MB     
+454      ...el.vision_model.vision_model.embeddings.position_embedding.weight   [256, 1152]                    bfloat16     294,912         576.00 KB   
+455      ...model.vision_model.vision_model.encoder.layers.0.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+456      ...del.vision_model.vision_model.encoder.layers.0.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+457      ...model.vision_model.vision_model.encoder.layers.0.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+458      ...del.vision_model.vision_model.encoder.layers.0.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+459      ...one.model.vision_model.vision_model.encoder.layers.0.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+460      ...e.model.vision_model.vision_model.encoder.layers.0.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+461      ...one.model.vision_model.vision_model.encoder.layers.0.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+462      ...e.model.vision_model.vision_model.encoder.layers.0.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+463      ....vision_model.vision_model.encoder.layers.0.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+464      ...ision_model.vision_model.encoder.layers.0.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+465      ...ision_model.vision_model.encoder.layers.0.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+466      ...ion_model.vision_model.encoder.layers.0.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+467      ....vision_model.vision_model.encoder.layers.0.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+468      ...ision_model.vision_model.encoder.layers.0.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+469      ....vision_model.vision_model.encoder.layers.0.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+470      ...ision_model.vision_model.encoder.layers.0.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+471      ...model.vision_model.vision_model.encoder.layers.1.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+472      ...del.vision_model.vision_model.encoder.layers.1.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+473      ...model.vision_model.vision_model.encoder.layers.1.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+474      ...del.vision_model.vision_model.encoder.layers.1.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+475      ...one.model.vision_model.vision_model.encoder.layers.1.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+476      ...e.model.vision_model.vision_model.encoder.layers.1.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+477      ...one.model.vision_model.vision_model.encoder.layers.1.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+478      ...e.model.vision_model.vision_model.encoder.layers.1.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+479      ....vision_model.vision_model.encoder.layers.1.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+480      ...ision_model.vision_model.encoder.layers.1.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+481      ...ision_model.vision_model.encoder.layers.1.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+482      ...ion_model.vision_model.encoder.layers.1.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+483      ....vision_model.vision_model.encoder.layers.1.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+484      ...ision_model.vision_model.encoder.layers.1.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+485      ....vision_model.vision_model.encoder.layers.1.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+486      ...ision_model.vision_model.encoder.layers.1.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+487      ...odel.vision_model.vision_model.encoder.layers.10.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+488      ...el.vision_model.vision_model.encoder.layers.10.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+489      ...odel.vision_model.vision_model.encoder.layers.10.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+490      ...el.vision_model.vision_model.encoder.layers.10.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+491      ...ne.model.vision_model.vision_model.encoder.layers.10.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+492      ....model.vision_model.vision_model.encoder.layers.10.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+493      ...ne.model.vision_model.vision_model.encoder.layers.10.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+494      ....model.vision_model.vision_model.encoder.layers.10.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+495      ...vision_model.vision_model.encoder.layers.10.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+496      ...sion_model.vision_model.encoder.layers.10.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+497      ...sion_model.vision_model.encoder.layers.10.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+498      ...on_model.vision_model.encoder.layers.10.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+499      ...vision_model.vision_model.encoder.layers.10.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+500      ...sion_model.vision_model.encoder.layers.10.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+501      ...vision_model.vision_model.encoder.layers.10.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+502      ...sion_model.vision_model.encoder.layers.10.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+503      ...odel.vision_model.vision_model.encoder.layers.11.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+504      ...el.vision_model.vision_model.encoder.layers.11.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+505      ...odel.vision_model.vision_model.encoder.layers.11.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+506      ...el.vision_model.vision_model.encoder.layers.11.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+507      ...ne.model.vision_model.vision_model.encoder.layers.11.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+508      ....model.vision_model.vision_model.encoder.layers.11.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+509      ...ne.model.vision_model.vision_model.encoder.layers.11.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+510      ....model.vision_model.vision_model.encoder.layers.11.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+511      ...vision_model.vision_model.encoder.layers.11.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+512      ...sion_model.vision_model.encoder.layers.11.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+513      ...sion_model.vision_model.encoder.layers.11.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+514      ...on_model.vision_model.encoder.layers.11.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+515      ...vision_model.vision_model.encoder.layers.11.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+516      ...sion_model.vision_model.encoder.layers.11.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+517      ...vision_model.vision_model.encoder.layers.11.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+518      ...sion_model.vision_model.encoder.layers.11.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+519      ...odel.vision_model.vision_model.encoder.layers.12.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+520      ...el.vision_model.vision_model.encoder.layers.12.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+521      ...odel.vision_model.vision_model.encoder.layers.12.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+522      ...el.vision_model.vision_model.encoder.layers.12.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+523      ...ne.model.vision_model.vision_model.encoder.layers.12.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+524      ....model.vision_model.vision_model.encoder.layers.12.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+525      ...ne.model.vision_model.vision_model.encoder.layers.12.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+526      ....model.vision_model.vision_model.encoder.layers.12.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+527      ...vision_model.vision_model.encoder.layers.12.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+528      ...sion_model.vision_model.encoder.layers.12.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+529      ...sion_model.vision_model.encoder.layers.12.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+530      ...on_model.vision_model.encoder.layers.12.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+531      ...vision_model.vision_model.encoder.layers.12.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+532      ...sion_model.vision_model.encoder.layers.12.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+533      ...vision_model.vision_model.encoder.layers.12.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+534      ...sion_model.vision_model.encoder.layers.12.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+535      ...odel.vision_model.vision_model.encoder.layers.13.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+536      ...el.vision_model.vision_model.encoder.layers.13.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+537      ...odel.vision_model.vision_model.encoder.layers.13.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+538      ...el.vision_model.vision_model.encoder.layers.13.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+539      ...ne.model.vision_model.vision_model.encoder.layers.13.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+540      ....model.vision_model.vision_model.encoder.layers.13.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+541      ...ne.model.vision_model.vision_model.encoder.layers.13.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+542      ....model.vision_model.vision_model.encoder.layers.13.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+543      ...vision_model.vision_model.encoder.layers.13.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+544      ...sion_model.vision_model.encoder.layers.13.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+545      ...sion_model.vision_model.encoder.layers.13.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+546      ...on_model.vision_model.encoder.layers.13.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+547      ...vision_model.vision_model.encoder.layers.13.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+548      ...sion_model.vision_model.encoder.layers.13.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+549      ...vision_model.vision_model.encoder.layers.13.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+550      ...sion_model.vision_model.encoder.layers.13.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+551      ...odel.vision_model.vision_model.encoder.layers.14.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+552      ...el.vision_model.vision_model.encoder.layers.14.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+553      ...odel.vision_model.vision_model.encoder.layers.14.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+554      ...el.vision_model.vision_model.encoder.layers.14.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+555      ...ne.model.vision_model.vision_model.encoder.layers.14.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+556      ....model.vision_model.vision_model.encoder.layers.14.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+557      ...ne.model.vision_model.vision_model.encoder.layers.14.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+558      ....model.vision_model.vision_model.encoder.layers.14.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+559      ...vision_model.vision_model.encoder.layers.14.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+560      ...sion_model.vision_model.encoder.layers.14.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+561      ...sion_model.vision_model.encoder.layers.14.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+562      ...on_model.vision_model.encoder.layers.14.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+563      ...vision_model.vision_model.encoder.layers.14.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+564      ...sion_model.vision_model.encoder.layers.14.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+565      ...vision_model.vision_model.encoder.layers.14.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+566      ...sion_model.vision_model.encoder.layers.14.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+567      ...odel.vision_model.vision_model.encoder.layers.15.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+568      ...el.vision_model.vision_model.encoder.layers.15.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+569      ...odel.vision_model.vision_model.encoder.layers.15.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+570      ...el.vision_model.vision_model.encoder.layers.15.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+571      ...ne.model.vision_model.vision_model.encoder.layers.15.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+572      ....model.vision_model.vision_model.encoder.layers.15.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+573      ...ne.model.vision_model.vision_model.encoder.layers.15.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+574      ....model.vision_model.vision_model.encoder.layers.15.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+575      ...vision_model.vision_model.encoder.layers.15.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+576      ...sion_model.vision_model.encoder.layers.15.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+577      ...sion_model.vision_model.encoder.layers.15.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+578      ...on_model.vision_model.encoder.layers.15.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+579      ...vision_model.vision_model.encoder.layers.15.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+580      ...sion_model.vision_model.encoder.layers.15.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+581      ...vision_model.vision_model.encoder.layers.15.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+582      ...sion_model.vision_model.encoder.layers.15.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+583      ...odel.vision_model.vision_model.encoder.layers.16.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+584      ...el.vision_model.vision_model.encoder.layers.16.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+585      ...odel.vision_model.vision_model.encoder.layers.16.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+586      ...el.vision_model.vision_model.encoder.layers.16.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+587      ...ne.model.vision_model.vision_model.encoder.layers.16.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+588      ....model.vision_model.vision_model.encoder.layers.16.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+589      ...ne.model.vision_model.vision_model.encoder.layers.16.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+590      ....model.vision_model.vision_model.encoder.layers.16.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+591      ...vision_model.vision_model.encoder.layers.16.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+592      ...sion_model.vision_model.encoder.layers.16.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+593      ...sion_model.vision_model.encoder.layers.16.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+594      ...on_model.vision_model.encoder.layers.16.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+595      ...vision_model.vision_model.encoder.layers.16.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+596      ...sion_model.vision_model.encoder.layers.16.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+597      ...vision_model.vision_model.encoder.layers.16.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+598      ...sion_model.vision_model.encoder.layers.16.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+599      ...odel.vision_model.vision_model.encoder.layers.17.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+600      ...el.vision_model.vision_model.encoder.layers.17.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+601      ...odel.vision_model.vision_model.encoder.layers.17.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+602      ...el.vision_model.vision_model.encoder.layers.17.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+603      ...ne.model.vision_model.vision_model.encoder.layers.17.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+604      ....model.vision_model.vision_model.encoder.layers.17.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+605      ...ne.model.vision_model.vision_model.encoder.layers.17.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+606      ....model.vision_model.vision_model.encoder.layers.17.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+607      ...vision_model.vision_model.encoder.layers.17.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+608      ...sion_model.vision_model.encoder.layers.17.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+609      ...sion_model.vision_model.encoder.layers.17.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+610      ...on_model.vision_model.encoder.layers.17.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+611      ...vision_model.vision_model.encoder.layers.17.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+612      ...sion_model.vision_model.encoder.layers.17.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+613      ...vision_model.vision_model.encoder.layers.17.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+614      ...sion_model.vision_model.encoder.layers.17.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+615      ...odel.vision_model.vision_model.encoder.layers.18.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+616      ...el.vision_model.vision_model.encoder.layers.18.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+617      ...odel.vision_model.vision_model.encoder.layers.18.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+618      ...el.vision_model.vision_model.encoder.layers.18.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+619      ...ne.model.vision_model.vision_model.encoder.layers.18.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+620      ....model.vision_model.vision_model.encoder.layers.18.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+621      ...ne.model.vision_model.vision_model.encoder.layers.18.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+622      ....model.vision_model.vision_model.encoder.layers.18.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+623      ...vision_model.vision_model.encoder.layers.18.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+624      ...sion_model.vision_model.encoder.layers.18.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+625      ...sion_model.vision_model.encoder.layers.18.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+626      ...on_model.vision_model.encoder.layers.18.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+627      ...vision_model.vision_model.encoder.layers.18.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+628      ...sion_model.vision_model.encoder.layers.18.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+629      ...vision_model.vision_model.encoder.layers.18.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+630      ...sion_model.vision_model.encoder.layers.18.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+631      ...odel.vision_model.vision_model.encoder.layers.19.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+632      ...el.vision_model.vision_model.encoder.layers.19.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+633      ...odel.vision_model.vision_model.encoder.layers.19.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+634      ...el.vision_model.vision_model.encoder.layers.19.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+635      ...ne.model.vision_model.vision_model.encoder.layers.19.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+636      ....model.vision_model.vision_model.encoder.layers.19.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+637      ...ne.model.vision_model.vision_model.encoder.layers.19.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+638      ....model.vision_model.vision_model.encoder.layers.19.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+639      ...vision_model.vision_model.encoder.layers.19.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+640      ...sion_model.vision_model.encoder.layers.19.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+641      ...sion_model.vision_model.encoder.layers.19.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+642      ...on_model.vision_model.encoder.layers.19.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+643      ...vision_model.vision_model.encoder.layers.19.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+644      ...sion_model.vision_model.encoder.layers.19.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+645      ...vision_model.vision_model.encoder.layers.19.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+646      ...sion_model.vision_model.encoder.layers.19.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+647      ...model.vision_model.vision_model.encoder.layers.2.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+648      ...del.vision_model.vision_model.encoder.layers.2.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+649      ...model.vision_model.vision_model.encoder.layers.2.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+650      ...del.vision_model.vision_model.encoder.layers.2.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+651      ...one.model.vision_model.vision_model.encoder.layers.2.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+652      ...e.model.vision_model.vision_model.encoder.layers.2.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+653      ...one.model.vision_model.vision_model.encoder.layers.2.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+654      ...e.model.vision_model.vision_model.encoder.layers.2.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+655      ....vision_model.vision_model.encoder.layers.2.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+656      ...ision_model.vision_model.encoder.layers.2.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+657      ...ision_model.vision_model.encoder.layers.2.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+658      ...ion_model.vision_model.encoder.layers.2.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+659      ....vision_model.vision_model.encoder.layers.2.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+660      ...ision_model.vision_model.encoder.layers.2.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+661      ....vision_model.vision_model.encoder.layers.2.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+662      ...ision_model.vision_model.encoder.layers.2.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+663      ...odel.vision_model.vision_model.encoder.layers.20.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+664      ...el.vision_model.vision_model.encoder.layers.20.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+665      ...odel.vision_model.vision_model.encoder.layers.20.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+666      ...el.vision_model.vision_model.encoder.layers.20.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+667      ...ne.model.vision_model.vision_model.encoder.layers.20.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+668      ....model.vision_model.vision_model.encoder.layers.20.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+669      ...ne.model.vision_model.vision_model.encoder.layers.20.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+670      ....model.vision_model.vision_model.encoder.layers.20.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+671      ...vision_model.vision_model.encoder.layers.20.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+672      ...sion_model.vision_model.encoder.layers.20.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+673      ...sion_model.vision_model.encoder.layers.20.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+674      ...on_model.vision_model.encoder.layers.20.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+675      ...vision_model.vision_model.encoder.layers.20.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+676      ...sion_model.vision_model.encoder.layers.20.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+677      ...vision_model.vision_model.encoder.layers.20.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+678      ...sion_model.vision_model.encoder.layers.20.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+679      ...odel.vision_model.vision_model.encoder.layers.21.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+680      ...el.vision_model.vision_model.encoder.layers.21.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+681      ...odel.vision_model.vision_model.encoder.layers.21.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+682      ...el.vision_model.vision_model.encoder.layers.21.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+683      ...ne.model.vision_model.vision_model.encoder.layers.21.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+684      ....model.vision_model.vision_model.encoder.layers.21.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+685      ...ne.model.vision_model.vision_model.encoder.layers.21.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+686      ....model.vision_model.vision_model.encoder.layers.21.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+687      ...vision_model.vision_model.encoder.layers.21.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+688      ...sion_model.vision_model.encoder.layers.21.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+689      ...sion_model.vision_model.encoder.layers.21.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+690      ...on_model.vision_model.encoder.layers.21.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+691      ...vision_model.vision_model.encoder.layers.21.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+692      ...sion_model.vision_model.encoder.layers.21.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+693      ...vision_model.vision_model.encoder.layers.21.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+694      ...sion_model.vision_model.encoder.layers.21.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+695      ...odel.vision_model.vision_model.encoder.layers.22.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+696      ...el.vision_model.vision_model.encoder.layers.22.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+697      ...odel.vision_model.vision_model.encoder.layers.22.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+698      ...el.vision_model.vision_model.encoder.layers.22.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+699      ...ne.model.vision_model.vision_model.encoder.layers.22.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+700      ....model.vision_model.vision_model.encoder.layers.22.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+701      ...ne.model.vision_model.vision_model.encoder.layers.22.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+702      ....model.vision_model.vision_model.encoder.layers.22.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+703      ...vision_model.vision_model.encoder.layers.22.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+704      ...sion_model.vision_model.encoder.layers.22.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+705      ...sion_model.vision_model.encoder.layers.22.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+706      ...on_model.vision_model.encoder.layers.22.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+707      ...vision_model.vision_model.encoder.layers.22.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+708      ...sion_model.vision_model.encoder.layers.22.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+709      ...vision_model.vision_model.encoder.layers.22.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+710      ...sion_model.vision_model.encoder.layers.22.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+711      ...odel.vision_model.vision_model.encoder.layers.23.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+712      ...el.vision_model.vision_model.encoder.layers.23.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+713      ...odel.vision_model.vision_model.encoder.layers.23.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+714      ...el.vision_model.vision_model.encoder.layers.23.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+715      ...ne.model.vision_model.vision_model.encoder.layers.23.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+716      ....model.vision_model.vision_model.encoder.layers.23.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+717      ...ne.model.vision_model.vision_model.encoder.layers.23.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+718      ....model.vision_model.vision_model.encoder.layers.23.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+719      ...vision_model.vision_model.encoder.layers.23.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+720      ...sion_model.vision_model.encoder.layers.23.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+721      ...sion_model.vision_model.encoder.layers.23.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+722      ...on_model.vision_model.encoder.layers.23.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+723      ...vision_model.vision_model.encoder.layers.23.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+724      ...sion_model.vision_model.encoder.layers.23.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+725      ...vision_model.vision_model.encoder.layers.23.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+726      ...sion_model.vision_model.encoder.layers.23.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+727      ...odel.vision_model.vision_model.encoder.layers.24.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+728      ...el.vision_model.vision_model.encoder.layers.24.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+729      ...odel.vision_model.vision_model.encoder.layers.24.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+730      ...el.vision_model.vision_model.encoder.layers.24.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+731      ...ne.model.vision_model.vision_model.encoder.layers.24.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+732      ....model.vision_model.vision_model.encoder.layers.24.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+733      ...ne.model.vision_model.vision_model.encoder.layers.24.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+734      ....model.vision_model.vision_model.encoder.layers.24.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+735      ...vision_model.vision_model.encoder.layers.24.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+736      ...sion_model.vision_model.encoder.layers.24.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+737      ...sion_model.vision_model.encoder.layers.24.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+738      ...on_model.vision_model.encoder.layers.24.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+739      ...vision_model.vision_model.encoder.layers.24.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+740      ...sion_model.vision_model.encoder.layers.24.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+741      ...vision_model.vision_model.encoder.layers.24.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+742      ...sion_model.vision_model.encoder.layers.24.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+743      ...odel.vision_model.vision_model.encoder.layers.25.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+744      ...el.vision_model.vision_model.encoder.layers.25.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+745      ...odel.vision_model.vision_model.encoder.layers.25.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+746      ...el.vision_model.vision_model.encoder.layers.25.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+747      ...ne.model.vision_model.vision_model.encoder.layers.25.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+748      ....model.vision_model.vision_model.encoder.layers.25.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+749      ...ne.model.vision_model.vision_model.encoder.layers.25.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+750      ....model.vision_model.vision_model.encoder.layers.25.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+751      ...vision_model.vision_model.encoder.layers.25.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+752      ...sion_model.vision_model.encoder.layers.25.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+753      ...sion_model.vision_model.encoder.layers.25.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+754      ...on_model.vision_model.encoder.layers.25.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+755      ...vision_model.vision_model.encoder.layers.25.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+756      ...sion_model.vision_model.encoder.layers.25.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+757      ...vision_model.vision_model.encoder.layers.25.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+758      ...sion_model.vision_model.encoder.layers.25.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+759      ...odel.vision_model.vision_model.encoder.layers.26.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+760      ...el.vision_model.vision_model.encoder.layers.26.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+761      ...odel.vision_model.vision_model.encoder.layers.26.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+762      ...el.vision_model.vision_model.encoder.layers.26.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+763      ...ne.model.vision_model.vision_model.encoder.layers.26.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+764      ....model.vision_model.vision_model.encoder.layers.26.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+765      ...ne.model.vision_model.vision_model.encoder.layers.26.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+766      ....model.vision_model.vision_model.encoder.layers.26.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+767      ...vision_model.vision_model.encoder.layers.26.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+768      ...sion_model.vision_model.encoder.layers.26.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+769      ...sion_model.vision_model.encoder.layers.26.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+770      ...on_model.vision_model.encoder.layers.26.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+771      ...vision_model.vision_model.encoder.layers.26.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+772      ...sion_model.vision_model.encoder.layers.26.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+773      ...vision_model.vision_model.encoder.layers.26.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+774      ...sion_model.vision_model.encoder.layers.26.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+775      ...model.vision_model.vision_model.encoder.layers.3.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+776      ...del.vision_model.vision_model.encoder.layers.3.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+777      ...model.vision_model.vision_model.encoder.layers.3.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+778      ...del.vision_model.vision_model.encoder.layers.3.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+779      ...one.model.vision_model.vision_model.encoder.layers.3.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+780      ...e.model.vision_model.vision_model.encoder.layers.3.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+781      ...one.model.vision_model.vision_model.encoder.layers.3.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+782      ...e.model.vision_model.vision_model.encoder.layers.3.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+783      ....vision_model.vision_model.encoder.layers.3.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+784      ...ision_model.vision_model.encoder.layers.3.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+785      ...ision_model.vision_model.encoder.layers.3.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+786      ...ion_model.vision_model.encoder.layers.3.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+787      ....vision_model.vision_model.encoder.layers.3.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+788      ...ision_model.vision_model.encoder.layers.3.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+789      ....vision_model.vision_model.encoder.layers.3.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+790      ...ision_model.vision_model.encoder.layers.3.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+791      ...model.vision_model.vision_model.encoder.layers.4.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+792      ...del.vision_model.vision_model.encoder.layers.4.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+793      ...model.vision_model.vision_model.encoder.layers.4.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+794      ...del.vision_model.vision_model.encoder.layers.4.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+795      ...one.model.vision_model.vision_model.encoder.layers.4.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+796      ...e.model.vision_model.vision_model.encoder.layers.4.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+797      ...one.model.vision_model.vision_model.encoder.layers.4.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+798      ...e.model.vision_model.vision_model.encoder.layers.4.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+799      ....vision_model.vision_model.encoder.layers.4.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+800      ...ision_model.vision_model.encoder.layers.4.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+801      ...ision_model.vision_model.encoder.layers.4.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+802      ...ion_model.vision_model.encoder.layers.4.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+803      ....vision_model.vision_model.encoder.layers.4.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+804      ...ision_model.vision_model.encoder.layers.4.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+805      ....vision_model.vision_model.encoder.layers.4.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+806      ...ision_model.vision_model.encoder.layers.4.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+807      ...model.vision_model.vision_model.encoder.layers.5.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+808      ...del.vision_model.vision_model.encoder.layers.5.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+809      ...model.vision_model.vision_model.encoder.layers.5.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+810      ...del.vision_model.vision_model.encoder.layers.5.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+811      ...one.model.vision_model.vision_model.encoder.layers.5.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+812      ...e.model.vision_model.vision_model.encoder.layers.5.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+813      ...one.model.vision_model.vision_model.encoder.layers.5.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+814      ...e.model.vision_model.vision_model.encoder.layers.5.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+815      ....vision_model.vision_model.encoder.layers.5.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+816      ...ision_model.vision_model.encoder.layers.5.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+817      ...ision_model.vision_model.encoder.layers.5.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+818      ...ion_model.vision_model.encoder.layers.5.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+819      ....vision_model.vision_model.encoder.layers.5.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+820      ...ision_model.vision_model.encoder.layers.5.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+821      ....vision_model.vision_model.encoder.layers.5.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+822      ...ision_model.vision_model.encoder.layers.5.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+823      ...model.vision_model.vision_model.encoder.layers.6.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+824      ...del.vision_model.vision_model.encoder.layers.6.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+825      ...model.vision_model.vision_model.encoder.layers.6.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+826      ...del.vision_model.vision_model.encoder.layers.6.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+827      ...one.model.vision_model.vision_model.encoder.layers.6.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+828      ...e.model.vision_model.vision_model.encoder.layers.6.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+829      ...one.model.vision_model.vision_model.encoder.layers.6.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+830      ...e.model.vision_model.vision_model.encoder.layers.6.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+831      ....vision_model.vision_model.encoder.layers.6.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+832      ...ision_model.vision_model.encoder.layers.6.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+833      ...ision_model.vision_model.encoder.layers.6.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+834      ...ion_model.vision_model.encoder.layers.6.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+835      ....vision_model.vision_model.encoder.layers.6.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+836      ...ision_model.vision_model.encoder.layers.6.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+837      ....vision_model.vision_model.encoder.layers.6.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+838      ...ision_model.vision_model.encoder.layers.6.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+839      ...model.vision_model.vision_model.encoder.layers.7.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+840      ...del.vision_model.vision_model.encoder.layers.7.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+841      ...model.vision_model.vision_model.encoder.layers.7.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+842      ...del.vision_model.vision_model.encoder.layers.7.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+843      ...one.model.vision_model.vision_model.encoder.layers.7.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+844      ...e.model.vision_model.vision_model.encoder.layers.7.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+845      ...one.model.vision_model.vision_model.encoder.layers.7.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+846      ...e.model.vision_model.vision_model.encoder.layers.7.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+847      ....vision_model.vision_model.encoder.layers.7.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+848      ...ision_model.vision_model.encoder.layers.7.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+849      ...ision_model.vision_model.encoder.layers.7.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+850      ...ion_model.vision_model.encoder.layers.7.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+851      ....vision_model.vision_model.encoder.layers.7.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+852      ...ision_model.vision_model.encoder.layers.7.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+853      ....vision_model.vision_model.encoder.layers.7.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+854      ...ision_model.vision_model.encoder.layers.7.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+855      ...model.vision_model.vision_model.encoder.layers.8.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+856      ...del.vision_model.vision_model.encoder.layers.8.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+857      ...model.vision_model.vision_model.encoder.layers.8.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+858      ...del.vision_model.vision_model.encoder.layers.8.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+859      ...one.model.vision_model.vision_model.encoder.layers.8.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+860      ...e.model.vision_model.vision_model.encoder.layers.8.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+861      ...one.model.vision_model.vision_model.encoder.layers.8.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+862      ...e.model.vision_model.vision_model.encoder.layers.8.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+863      ....vision_model.vision_model.encoder.layers.8.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+864      ...ision_model.vision_model.encoder.layers.8.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+865      ...ision_model.vision_model.encoder.layers.8.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+866      ...ion_model.vision_model.encoder.layers.8.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+867      ....vision_model.vision_model.encoder.layers.8.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+868      ...ision_model.vision_model.encoder.layers.8.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+869      ....vision_model.vision_model.encoder.layers.8.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+870      ...ision_model.vision_model.encoder.layers.8.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+871      ...model.vision_model.vision_model.encoder.layers.9.layer_norm1.bias   [1152]                         bfloat16     1,152           2.25 KB     
+872      ...del.vision_model.vision_model.encoder.layers.9.layer_norm1.weight   [1152]                         bfloat16     1,152           2.25 KB     
+873      ...model.vision_model.vision_model.encoder.layers.9.layer_norm2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+874      ...del.vision_model.vision_model.encoder.layers.9.layer_norm2.weight   [1152]                         bfloat16     1,152           2.25 KB     
+875      ...one.model.vision_model.vision_model.encoder.layers.9.mlp.fc1.bias   [4304]                         bfloat16     4,304           8.41 KB     
+876      ...e.model.vision_model.vision_model.encoder.layers.9.mlp.fc1.weight   [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+877      ...one.model.vision_model.vision_model.encoder.layers.9.mlp.fc2.bias   [1152]                         bfloat16     1,152           2.25 KB     
+878      ...e.model.vision_model.vision_model.encoder.layers.9.mlp.fc2.weight   [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+879      ....vision_model.vision_model.encoder.layers.9.self_attn.k_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+880      ...ision_model.vision_model.encoder.layers.9.self_attn.k_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+881      ...ision_model.vision_model.encoder.layers.9.self_attn.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+882      ...ion_model.vision_model.encoder.layers.9.self_attn.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+883      ....vision_model.vision_model.encoder.layers.9.self_attn.q_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+884      ...ision_model.vision_model.encoder.layers.9.self_attn.q_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+885      ....vision_model.vision_model.encoder.layers.9.self_attn.v_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+886      ...ision_model.vision_model.encoder.layers.9.self_attn.v_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+887      backbone.model.vision_model.vision_model.head.attention.in_proj_bias   [3456]                         bfloat16     3,456           6.75 KB     
+888      ...one.model.vision_model.vision_model.head.attention.in_proj_weight   [3456, 1152]                   bfloat16     3,981,312       7.59 MB     
+889      ...bone.model.vision_model.vision_model.head.attention.out_proj.bias   [1152]                         bfloat16     1,152           2.25 KB     
+890      ...ne.model.vision_model.vision_model.head.attention.out_proj.weight   [1152, 1152]                   bfloat16     1,327,104       2.53 MB     
+891      backbone.model.vision_model.vision_model.head.layernorm.bias           [1152]                         bfloat16     1,152           2.25 KB     
+892      backbone.model.vision_model.vision_model.head.layernorm.weight         [1152]                         bfloat16     1,152           2.25 KB     
+893      backbone.model.vision_model.vision_model.head.mlp.fc1.bias             [4304]                         bfloat16     4,304           8.41 KB     
+894      backbone.model.vision_model.vision_model.head.mlp.fc1.weight           [4304, 1152]                   bfloat16     4,958,208       9.46 MB     
+895      backbone.model.vision_model.vision_model.head.mlp.fc2.bias             [1152]                         bfloat16     1,152           2.25 KB     
+896      backbone.model.vision_model.vision_model.head.mlp.fc2.weight           [1152, 4304]                   bfloat16     4,958,208       9.46 MB     
+897      backbone.model.vision_model.vision_model.head.probe                    [1, 1, 1152]                   bfloat16     1,152           2.25 KB     
+898      backbone.model.vision_model.vision_model.post_layernorm.bias           [1152]                         bfloat16     1,152           2.25 KB     
+899      backbone.model.vision_model.vision_model.post_layernorm.weight         [1152]                         bfloat16     1,152           2.25 KB     
+
+====================================================================================================
+文件 [2/2]: model-00002-of-00002.safetensors
+====================================================================================================
+路径: /home/sythoid_01/.cache/huggingface/hub/models--nvidia--GR00T-N1.6-3B/snapshots/d0814e7ecb19202e7c8468b46098b0b7ef3a6d61/model-00002-of-00002.safetensors
+文件大小: 1.47 GB
+张量数量: 207
+总参数量: 791,128,064 (791.13M)
+模型大小: 1.47 GB
+
+元数据:
+  format: pt
+
+----------------------------------------------------------------------------------------------------
+张量详情:
+----------------------------------------------------------------------------------------------------
+序号       名称                                                                     形状                             类型           参数量             大小          
+----------------------------------------------------------------------------------------------------
+1        action_head.action_decoder.layer1.W                                    [32, 1024, 1024]               bfloat16     33,554,432      64.00 MB    
+2        action_head.action_decoder.layer1.b                                    [32, 1024]                     bfloat16     32,768          64.00 KB    
+3        action_head.action_decoder.layer2.W                                    [32, 1024, 128]                bfloat16     4,194,304       8.00 MB     
+4        action_head.action_decoder.layer2.b                                    [32, 128]                      bfloat16     4,096           8.00 KB     
+5        action_head.action_encoder.W1.W                                        [32, 128, 1536]                bfloat16     6,291,456       12.00 MB    
+6        action_head.action_encoder.W1.b                                        [32, 1536]                     bfloat16     49,152          96.00 KB    
+7        action_head.action_encoder.W2.W                                        [32, 3072, 1536]               bfloat16     150,994,944     288.00 MB   
+8        action_head.action_encoder.W2.b                                        [32, 1536]                     bfloat16     49,152          96.00 KB    
+9        action_head.action_encoder.W3.W                                        [32, 1536, 1536]               bfloat16     75,497,472      144.00 MB   
+10       action_head.action_encoder.W3.b                                        [32, 1536]                     bfloat16     49,152          96.00 KB    
+11       action_head.model.proj_out_1.bias                                      [3072]                         bfloat16     3,072           6.00 KB     
+12       action_head.model.proj_out_1.weight                                    [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+13       action_head.model.proj_out_2.bias                                      [1024]                         bfloat16     1,024           2.00 KB     
+14       action_head.model.proj_out_2.weight                                    [1024, 1536]                   bfloat16     1,572,864       3.00 MB     
+15       action_head.model.transformer_blocks.18.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+16       action_head.model.transformer_blocks.18.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+17       action_head.model.transformer_blocks.18.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+18       action_head.model.transformer_blocks.18.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+19       action_head.model.transformer_blocks.19.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+20       action_head.model.transformer_blocks.19.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+21       action_head.model.transformer_blocks.19.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+22       action_head.model.transformer_blocks.19.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+23       action_head.model.transformer_blocks.19.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+24       action_head.model.transformer_blocks.19.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+25       action_head.model.transformer_blocks.19.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+26       action_head.model.transformer_blocks.19.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+27       action_head.model.transformer_blocks.19.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+28       action_head.model.transformer_blocks.19.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+29       action_head.model.transformer_blocks.19.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+30       action_head.model.transformer_blocks.19.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+31       action_head.model.transformer_blocks.19.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+32       action_head.model.transformer_blocks.19.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+33       action_head.model.transformer_blocks.20.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+34       action_head.model.transformer_blocks.20.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+35       action_head.model.transformer_blocks.20.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+36       action_head.model.transformer_blocks.20.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+37       action_head.model.transformer_blocks.20.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+38       action_head.model.transformer_blocks.20.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+39       action_head.model.transformer_blocks.20.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+40       action_head.model.transformer_blocks.20.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+41       action_head.model.transformer_blocks.20.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+42       action_head.model.transformer_blocks.20.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+43       action_head.model.transformer_blocks.20.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+44       action_head.model.transformer_blocks.20.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+45       action_head.model.transformer_blocks.20.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+46       action_head.model.transformer_blocks.20.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+47       action_head.model.transformer_blocks.21.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+48       action_head.model.transformer_blocks.21.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+49       action_head.model.transformer_blocks.21.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+50       action_head.model.transformer_blocks.21.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+51       action_head.model.transformer_blocks.21.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+52       action_head.model.transformer_blocks.21.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+53       action_head.model.transformer_blocks.21.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+54       action_head.model.transformer_blocks.21.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+55       action_head.model.transformer_blocks.21.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+56       action_head.model.transformer_blocks.21.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+57       action_head.model.transformer_blocks.21.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+58       action_head.model.transformer_blocks.21.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+59       action_head.model.transformer_blocks.21.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+60       action_head.model.transformer_blocks.21.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+61       action_head.model.transformer_blocks.22.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+62       action_head.model.transformer_blocks.22.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+63       action_head.model.transformer_blocks.22.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+64       action_head.model.transformer_blocks.22.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+65       action_head.model.transformer_blocks.22.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+66       action_head.model.transformer_blocks.22.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+67       action_head.model.transformer_blocks.22.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+68       action_head.model.transformer_blocks.22.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+69       action_head.model.transformer_blocks.22.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+70       action_head.model.transformer_blocks.22.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+71       action_head.model.transformer_blocks.22.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+72       action_head.model.transformer_blocks.22.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+73       action_head.model.transformer_blocks.22.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+74       action_head.model.transformer_blocks.22.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+75       action_head.model.transformer_blocks.23.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+76       action_head.model.transformer_blocks.23.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+77       action_head.model.transformer_blocks.23.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+78       action_head.model.transformer_blocks.23.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+79       action_head.model.transformer_blocks.23.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+80       action_head.model.transformer_blocks.23.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+81       action_head.model.transformer_blocks.23.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+82       action_head.model.transformer_blocks.23.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+83       action_head.model.transformer_blocks.23.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+84       action_head.model.transformer_blocks.23.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+85       action_head.model.transformer_blocks.23.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+86       action_head.model.transformer_blocks.23.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+87       action_head.model.transformer_blocks.23.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+88       action_head.model.transformer_blocks.23.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+89       action_head.model.transformer_blocks.24.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+90       action_head.model.transformer_blocks.24.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+91       action_head.model.transformer_blocks.24.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+92       action_head.model.transformer_blocks.24.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+93       action_head.model.transformer_blocks.24.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+94       action_head.model.transformer_blocks.24.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+95       action_head.model.transformer_blocks.24.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+96       action_head.model.transformer_blocks.24.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+97       action_head.model.transformer_blocks.24.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+98       action_head.model.transformer_blocks.24.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+99       action_head.model.transformer_blocks.24.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+100      action_head.model.transformer_blocks.24.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+101      action_head.model.transformer_blocks.24.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+102      action_head.model.transformer_blocks.24.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+103      action_head.model.transformer_blocks.25.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+104      action_head.model.transformer_blocks.25.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+105      action_head.model.transformer_blocks.25.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+106      action_head.model.transformer_blocks.25.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+107      action_head.model.transformer_blocks.25.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+108      action_head.model.transformer_blocks.25.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+109      action_head.model.transformer_blocks.25.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+110      action_head.model.transformer_blocks.25.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+111      action_head.model.transformer_blocks.25.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+112      action_head.model.transformer_blocks.25.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+113      action_head.model.transformer_blocks.25.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+114      action_head.model.transformer_blocks.25.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+115      action_head.model.transformer_blocks.25.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+116      action_head.model.transformer_blocks.25.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+117      action_head.model.transformer_blocks.26.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+118      action_head.model.transformer_blocks.26.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+119      action_head.model.transformer_blocks.26.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+120      action_head.model.transformer_blocks.26.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+121      action_head.model.transformer_blocks.26.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+122      action_head.model.transformer_blocks.26.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+123      action_head.model.transformer_blocks.26.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+124      action_head.model.transformer_blocks.26.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+125      action_head.model.transformer_blocks.26.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+126      action_head.model.transformer_blocks.26.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+127      action_head.model.transformer_blocks.26.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+128      action_head.model.transformer_blocks.26.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+129      action_head.model.transformer_blocks.26.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+130      action_head.model.transformer_blocks.26.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+131      action_head.model.transformer_blocks.27.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+132      action_head.model.transformer_blocks.27.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+133      action_head.model.transformer_blocks.27.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+134      action_head.model.transformer_blocks.27.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+135      action_head.model.transformer_blocks.27.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+136      action_head.model.transformer_blocks.27.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+137      action_head.model.transformer_blocks.27.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+138      action_head.model.transformer_blocks.27.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+139      action_head.model.transformer_blocks.27.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+140      action_head.model.transformer_blocks.27.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+141      action_head.model.transformer_blocks.27.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+142      action_head.model.transformer_blocks.27.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+143      action_head.model.transformer_blocks.27.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+144      action_head.model.transformer_blocks.27.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+145      action_head.model.transformer_blocks.28.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+146      action_head.model.transformer_blocks.28.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+147      action_head.model.transformer_blocks.28.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+148      action_head.model.transformer_blocks.28.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+149      action_head.model.transformer_blocks.28.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+150      action_head.model.transformer_blocks.28.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+151      action_head.model.transformer_blocks.28.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+152      action_head.model.transformer_blocks.28.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+153      action_head.model.transformer_blocks.28.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+154      action_head.model.transformer_blocks.28.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+155      action_head.model.transformer_blocks.28.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+156      action_head.model.transformer_blocks.28.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+157      action_head.model.transformer_blocks.28.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+158      action_head.model.transformer_blocks.28.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+159      action_head.model.transformer_blocks.29.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+160      action_head.model.transformer_blocks.29.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+161      action_head.model.transformer_blocks.29.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+162      action_head.model.transformer_blocks.29.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+163      action_head.model.transformer_blocks.29.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+164      action_head.model.transformer_blocks.29.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+165      action_head.model.transformer_blocks.29.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+166      action_head.model.transformer_blocks.29.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+167      action_head.model.transformer_blocks.29.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+168      action_head.model.transformer_blocks.29.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+169      action_head.model.transformer_blocks.29.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+170      action_head.model.transformer_blocks.29.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+171      action_head.model.transformer_blocks.29.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+172      action_head.model.transformer_blocks.29.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+173      action_head.model.transformer_blocks.30.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+174      action_head.model.transformer_blocks.30.attn1.to_k.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+175      action_head.model.transformer_blocks.30.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+176      action_head.model.transformer_blocks.30.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+177      action_head.model.transformer_blocks.30.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+178      action_head.model.transformer_blocks.30.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+179      action_head.model.transformer_blocks.30.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+180      action_head.model.transformer_blocks.30.attn1.to_v.weight              [1536, 2048]                   bfloat16     3,145,728       6.00 MB     
+181      action_head.model.transformer_blocks.30.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+182      action_head.model.transformer_blocks.30.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+183      action_head.model.transformer_blocks.30.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+184      action_head.model.transformer_blocks.30.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+185      action_head.model.transformer_blocks.30.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+186      action_head.model.transformer_blocks.30.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+187      action_head.model.transformer_blocks.31.attn1.to_k.bias                [1536]                         bfloat16     1,536           3.00 KB     
+188      action_head.model.transformer_blocks.31.attn1.to_k.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+189      action_head.model.transformer_blocks.31.attn1.to_out.0.bias            [1536]                         bfloat16     1,536           3.00 KB     
+190      action_head.model.transformer_blocks.31.attn1.to_out.0.weight          [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+191      action_head.model.transformer_blocks.31.attn1.to_q.bias                [1536]                         bfloat16     1,536           3.00 KB     
+192      action_head.model.transformer_blocks.31.attn1.to_q.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+193      action_head.model.transformer_blocks.31.attn1.to_v.bias                [1536]                         bfloat16     1,536           3.00 KB     
+194      action_head.model.transformer_blocks.31.attn1.to_v.weight              [1536, 1536]                   bfloat16     2,359,296       4.50 MB     
+195      action_head.model.transformer_blocks.31.ff.net.0.proj.bias             [6144]                         bfloat16     6,144           12.00 KB    
+196      action_head.model.transformer_blocks.31.ff.net.0.proj.weight           [6144, 1536]                   bfloat16     9,437,184       18.00 MB    
+197      action_head.model.transformer_blocks.31.ff.net.2.bias                  [1536]                         bfloat16     1,536           3.00 KB     
+198      action_head.model.transformer_blocks.31.ff.net.2.weight                [1536, 6144]                   bfloat16     9,437,184       18.00 MB    
+199      action_head.model.transformer_blocks.31.norm1.linear.bias              [3072]                         bfloat16     3,072           6.00 KB     
+200      action_head.model.transformer_blocks.31.norm1.linear.weight            [3072, 1536]                   bfloat16     4,718,592       9.00 MB     
+201      action_head.position_embedding.weight                                  [1024, 1536]                   bfloat16     1,572,864       3.00 MB     
+202      action_head.state_encoder.layer1.W                                     [32, 128, 1024]                bfloat16     4,194,304       8.00 MB     
+203      action_head.state_encoder.layer1.b                                     [32, 1024]                     bfloat16     32,768          64.00 KB    
+204      action_head.state_encoder.layer2.W                                     [32, 1024, 1536]               bfloat16     50,331,648      96.00 MB    
+205      action_head.state_encoder.layer2.b                                     [32, 1536]                     bfloat16     49,152          96.00 KB    
+206      action_head.vlln.bias                                                  [2048]                         bfloat16     2,048           4.00 KB     
+207      action_head.vlln.weight                                                [2048]                         bfloat16     2,048           4.00 KB     
+
+====================================================================================================
+报告结束
+====================================================================================================

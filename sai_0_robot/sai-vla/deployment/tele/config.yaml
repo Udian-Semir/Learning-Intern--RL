@@ -1,0 +1,111 @@
+# ParaCAT 遥操作推理服务配置
+# ============================================================================
+
+# 设备配置
+device: "cuda:0"
+
+# 日志配置
+verbose: true  # 是否打印详细推理信息
+
+# 图像预处理配置
+image_preprocess:
+  # resize 尺寸 [width, height]，null 表示不 resize
+  resize: [256, 256]
+  # 水平翻转
+  flip_horizontal: false
+  # 垂直翻转
+  flip_vertical: false
+  # 旋转 180 度
+  rotate_180: false
+  # BGR 转 RGB (如果传入的是 BGR 格式图像，设为 true)
+  bgr_to_rgb: true
+
+# VLM Backbone 配置
+vlm:
+  # 模型类型: qwen3_vl, eagle2_5_vl, cosmos_reason_2b_vl
+  type: "eagle2_5_vl"
+  
+  # 模型路径
+  model_path: "/home/dev/.cache/huggingface/hub/models--nvidia--GR00T-N1.5-3B/snapshots/869830fc749c35f34771aa5209f923ac57e4564e"
+  
+  # 提取层 (Eagle: [-1], Qwen2B: [14], Qwen4B: [16])
+  layers: [-1]
+  
+  # 图像翻转
+  flip_images: false
+  
+  # 内容顺序
+  content_order: "images_first"
+  
+  # 指令小写
+  lowercase_instruction: true
+  
+  # 添加 generation prompt
+  add_generation_prompt: true
+
+# Hidden Dim (Eagle: 2048, Qwen2B: 2048, Qwen4B: 2560)
+hidden_dim: 2048
+
+# Pons Adapter 配置
+pons:
+  # Checkpoint 路径 (留空则不使用 Pons)
+  checkpoint: "/home/dev/文档/huangwenlong/vla-data-pipeline/lerobot_output/my_dataset256_weight_eagle/p6000_bsz80*1*8_pons_q128_chunk50_tb2_6000steps_layer-1_20260130_wpflow_matching_0_eagle_libero_test_newest_mydataset256_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_6000/pons.pt"
+  
+  # Query 序列长度
+  q_seq_len: 128
+  
+  # 块数量
+  num_blocks: 2
+  
+  # 注意力头数量
+  num_heads: 8
+
+# ParaCAT Action Head 配置
+paracat:
+  # Checkpoint 路径 (必填)
+  checkpoint: "/home/dev/文档/huangwenlong/vla-data-pipeline/lerobot_output/my_dataset256_weight_eagle/p6000_bsz80*1*8_pons_q128_chunk50_tb2_6000steps_layer-1_20260130_wpflow_matching_0_eagle_libero_test_newest_mydataset256_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_6000/paracat.pt"
+
+# State Mapper 配置 (可选，自动从 checkpoint 目录查找)
+state_mapper:
+  checkpoint: "/home/dev/文档/huangwenlong/vla-data-pipeline/lerobot_output/my_dataset256_weight_eagle/p6000_bsz80*1*8_pons_q128_chunk50_tb2_6000steps_layer-1_20260130_wpflow_matching_0_eagle_libero_test_newest_mydataset256_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_6000/state_mapper.pt"
+
+# 动作配置
+chunk_size: 50
+action_dim: 14
+
+# 反离散化配置
+undiscrete_columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+undiscrete_deltas: [0, 0, 0, 0, 0, 0, 1, 1, 1, 0.5, 0.5, 0.5]
+
+# Gripper 列配置
+gripper_columns: [12, 13]
+# gripper_columns: []
+# 是否将 gripper 负值变为 0: {-1, 0, 1} -> {0, 0, 1}
+gripper_clamp_negative: true
+
+# State 预处理配置
+# 可选处理器: "hand_binary", "minmax_normalize", "gripper_binarize"
+state_process_order: ["minmax_normalize", "gripper_binarize"]
+hand_binary_columns: []
+# hand_binary_threshold: 442.0
+state_euler_to_axisangle_columns: []
+state_dim: 14
+
+# State 最大最小值归一化配置
+state_normalize:
+  # stats.json 文件路径
+  stats_file: "/home/dev/文档/huangwenlong/vla-data-pipeline/lerobot_output/my_dataset256/meta/stats.json"
+  # 需要归一化的 state 索引列表
+  columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  # stats.json 中对应的 key
+  stats_key: "observation.state"
+
+# State gripper 二值化配置
+state_gripper_binarize:
+  # 需要二值化的 state 索引列表
+  columns: [12, 13]
+  # 阈值: > threshold 为 1, <= threshold 为 0
+  threshold: 0.5
+
+# 默认任务指令
+default_instruction: "pick up the bottle"

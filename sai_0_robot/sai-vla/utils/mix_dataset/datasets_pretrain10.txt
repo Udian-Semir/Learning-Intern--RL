@@ -1,0 +1,14 @@
+# 10 个已完成 VLM hidden states 抽取的数据集（status=ok, from extraction_log.jsonl）
+# 用于 OFT action head 的 pretrain 物理合并（方案 A）。
+# 一行一个 LeRobot 数据集根目录；# 开头为注释；空行忽略。
+
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/viola
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/jaco_play
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/berkeley_cable_routing
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/austin_buds_dataset_converted_externally_to_rlds
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/berkeley_autolab_ur5
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/nyu_franka_play_dataset_converted_externally_to_rlds
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/ucsd_kitchen_dataset_converted_externally_to_rlds
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/roboturk
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/toto
+/data_disk1/hwl/unitree_train_v2_recipe_lerobot/dlr_edan_shared_control_converted_externally_to_rlds

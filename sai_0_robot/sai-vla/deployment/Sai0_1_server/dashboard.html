@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sai0-VLA Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d2e;
+    --border: #2a2d3e;
+    --accent: #6c5ce7;
+    --accent2: #00cec9;
+    --accent3: #fd79a8;
+    --accent4: #fdcb6e;
+    --text: #e2e8f0;
+    --text-dim: #8892b0;
+    --success: #00b894;
+    --error: #e17055;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .version-badge {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .refresh-info {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .refresh-info select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  .status-dot.online { background: var(--success); }
+  .status-dot.offline { background: var(--error); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* KPI cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: transform .15s, border-color .15s;
+  }
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+  }
+  .kpi-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+  .kpi-value.accent  { color: var(--accent); }
+  .kpi-value.accent2 { color: var(--accent2); }
+  .kpi-value.accent3 { color: var(--accent3); }
+  .kpi-value.accent4 { color: var(--accent4); }
+  .kpi-value.success { color: var(--success); }
+  .kpi-value.error   { color: var(--error); }
+
+  /* Section */
+  .section {
+    margin-bottom: 28px;
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px; height: 16px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  /* Two-column layout */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  /* Tables */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+  th {
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 11px;
+  }
+  tr:not(:last-child) td {
+    border-bottom: 1px solid var(--border);
+  }
+  tr:hover td { background: rgba(108, 92, 231, 0.05); }
+
+  /* Bar chart (CSS-only) */
+  .bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .bar {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .6s ease;
+  }
+  .bar-pct {
+    font-size: 12px;
+    color: var(--text-dim);
+    min-width: 42px;
+    text-align: right;
+  }
+
+  /* GPU meter */
+  .gpu-meter {
+    padding: 20px;
+  }
+  .meter-row {
+    margin-bottom: 14px;
+  }
+  .meter-row:last-child { margin-bottom: 0; }
+  .meter-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  .meter-bar {
+    height: 10px;
+    background: var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width .6s ease;
+  }
+  .meter-fill.gpu-util { background: linear-gradient(90deg, var(--accent), var(--accent3)); }
+  .meter-fill.gpu-mem  { background: linear-gradient(90deg, var(--accent2), var(--accent4)); }
+
+  /* Error overlay */
+  .error-banner {
+    display: none;
+    background: rgba(225, 112, 85, 0.15);
+    border: 1px solid var(--error);
+    color: var(--error);
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .error-banner.show { display: block; }
+
+  /* Loading shimmer */
+  .shimmer {
+    background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+    height: 24px;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Sai0-VLA Dashboard</h1>
+  <div class="header-right">
+    <span id="status"><span class="status-dot offline"></span>Connecting...</span>
+    <span class="version-badge" id="versionBadge">--</span>
+    <span class="refresh-info">
+      Refresh:
+      <select id="intervalSelect" onchange="setInterval_()">
+        <option value="3000">3s</option>
+        <option value="5000" selected>5s</option>
+        <option value="10000">10s</option>
+        <option value="30000">30s</option>
+        <option value="0">Off</option>
+      </select>
+    </span>
+  </div>
+</div>
+
+<div class="error-banner" id="errorBanner"></div>
+
+<!-- KPI cards -->
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Requests</div>
+    <div class="kpi-value accent" id="kpiTotal">--</div>
+    <div class="kpi-sub" id="kpiTotalSub"></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Success Rate</div>
+    <div class="kpi-value success" id="kpiSuccess">--</div>
+    <div class="kpi-sub" id="kpiSuccessSub"></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Errors</div>
+    <div class="kpi-value error" id="kpiErrors">--</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Avg Inference</div>
+    <div class="kpi-value accent2" id="kpiAvg">--</div>
+    <div class="kpi-sub">ms per request</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Queue Depth</div>
+    <div class="kpi-value accent4" id="kpiQueue">--</div>
+    <div class="kpi-sub">pending tasks</div>
+  </div>
+</div>
+
+<!-- GPU + breakdown -->
+<div class="two-col">
+  <!-- Per-User -->
+  <div class="section">
+    <div class="section-title">Per-User Usage</div>
+    <div class="card">
+      <div class="card-header">
+        <span>API Key</span>
+        <span id="userCount">0 users</span>
+      </div>
+      <table>
+        <thead><tr><th>User</th><th>Requests</th><th>Share</th></tr></thead>
+        <tbody id="userBody"><tr><td colspan="3"><div class="shimmer"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Per-Suite -->
+  <div class="section">
+    <div class="section-title">Per-Suite Usage</div>
+    <div class="card">
+      <div class="card-header">
+        <span>Task Suite</span>
+        <span id="suiteCount">0 suites</span>
+      </div>
+      <table>
+        <thead><tr><th>Suite</th><th>Requests</th><th>Share</th></tr></thead>
+        <tbody id="suiteBody"><tr><td colspan="3"><div class="shimmer"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- GPU -->
+<div class="section">
+  <div class="section-title">GPU Status</div>
+  <div class="card">
+    <div class="gpu-meter" id="gpuSection">
+      <div class="meter-row">
+        <div class="meter-label">
+          <span>GPU Utilization</span>
+          <span id="gpuUtilPct">--%</span>
+        </div>
+        <div class="meter-bar"><div class="meter-fill gpu-util" id="gpuUtilBar" style="width:0%"></div></div>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label">
+          <span>GPU Memory</span>
+          <span id="gpuMemText">-- / -- MB</span>
+        </div>
+        <div class="meter-bar"><div class="meter-fill gpu-mem" id="gpuMemBar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+let timer = null;
+
+function mask(key) {
+  if (!key || key === 'anonymous') return 'anonymous';
+  if (key.length <= 8) return key;
+  return key.slice(0, 6) + '***' + key.slice(-4);
+}
+
+function num(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return n.toString();
+}
+
+const COLORS = ['var(--accent)', 'var(--accent2)', 'var(--accent3)', 'var(--accent4)', 'var(--success)'];
+
+function buildRows(data, totalReqs) {
+  const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  return sorted.map(([key, count], i) => {
+    const pct = totalReqs > 0 ? (count / totalReqs * 100) : 0;
+    const color = COLORS[i % COLORS.length];
+    return `<tr>
+      <td style="font-weight:500">${mask(key)}</td>
+      <td>${num(count)}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span class="bar-pct">${pct.toFixed(1)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function refresh() {
+  try {
+    const r = await fetch(API_BASE + '/v1/metrics');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+
+    document.getElementById('errorBanner').classList.remove('show');
+    document.getElementById('status').innerHTML =
+      '<span class="status-dot online"></span>Online';
+    document.getElementById('versionBadge').textContent = 'v' + (d.version || '--');
+
+    const act = d.v1_act || {};
+    const total = act.total_requests || 0;
+    const errors = act.total_errors || 0;
+    const success = total > 0 ? ((total - errors) / total * 100) : 100;
+
+    document.getElementById('kpiTotal').textContent = num(total);
+    document.getElementById('kpiTotalSub').textContent = 'since last restart';
+    document.getElementById('kpiErrors').textContent = num(errors);
+    document.getElementById('kpiSuccess').textContent = success.toFixed(1) + '%';
+    document.getElementById('kpiSuccessSub').textContent = `${total - errors} / ${total}`;
+    document.getElementById('kpiAvg').textContent = (act.avg_inference_ms || 0).toFixed(1);
+    document.getElementById('kpiQueue').textContent = d.queue_depth ?? '--';
+
+    // Per-user table
+    const perUser = act.per_user || {};
+    const userKeys = Object.keys(perUser);
+    document.getElementById('userCount').textContent = userKeys.length + ' user' + (userKeys.length !== 1 ? 's' : '');
+    const userHTML = buildRows(perUser, total);
+    document.getElementById('userBody').innerHTML = userHTML || '<tr><td colspan="3" style="color:var(--text-dim);text-align:center;padding:20px">No data yet</td></tr>';
+
+    // Per-suite table
+    const perSuite = act.per_suite || {};
+    const suiteKeys = Object.keys(perSuite);
+    document.getElementById('suiteCount').textContent = suiteKeys.length + ' suite' + (suiteKeys.length !== 1 ? 's' : '');
+    const suiteHTML = buildRows(perSuite, total);
+    document.getElementById('suiteBody').innerHTML = suiteHTML || '<tr><td colspan="3" style="color:var(--text-dim);text-align:center;padding:20px">No data yet</td></tr>';
+
+    // GPU
+    const gpu = d.gpu || {};
+    if (gpu.gpu_utilization_pct !== undefined) {
+      const util = gpu.gpu_utilization_pct;
+      document.getElementById('gpuUtilPct').textContent = util + '%';
+      document.getElementById('gpuUtilBar').style.width = util + '%';
+
+      const used = gpu.gpu_memory_used_mb || 0;
+      const tot = gpu.gpu_memory_total_mb || 1;
+      const memPct = (used / tot * 100).toFixed(1);
+      document.getElementById('gpuMemText').textContent = `${used} / ${tot} MB (${memPct}%)`;
+      document.getElementById('gpuMemBar').style.width = memPct + '%';
+    } else {
+      document.getElementById('gpuUtilPct').textContent = 'N/A';
+      document.getElementById('gpuMemText').textContent = gpu.note || 'N/A';
+    }
+  } catch (e) {
+    document.getElementById('status').innerHTML =
+      '<span class="status-dot offline"></span>Offline';
+    const banner = document.getElementById('errorBanner');
+    banner.textContent = 'Failed to fetch metrics: ' + e.message;
+    banner.classList.add('show');
+  }
+}
+
+function setInterval_() {
+  if (timer) clearInterval(timer);
+  const ms = parseInt(document.getElementById('intervalSelect').value);
+  if (ms > 0) timer = setInterval(refresh, ms);
+}
+
+refresh();
+setInterval_();
+</script>
+</body>
+</html>

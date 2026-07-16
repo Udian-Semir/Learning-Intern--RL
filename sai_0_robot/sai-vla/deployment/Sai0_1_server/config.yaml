@@ -1,0 +1,208 @@
+# Sai0_1 VLA 推理服务器配置文件
+# ==================================
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+
+# Pipeline 配置
+pipeline:
+  # Action Head 检查点路径
+  # action_head_ckpt: "/home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_spatial/libero_lerobot_spatial_sys0_eagle_-1_weight/OFT1_0/layer_-1/p6000_bsz80*1*8_tb4_20000steps_layer-1_20260227_wpflow_matching_0_eagle_libero_test_newest_libero_spatial_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_20000/action_head.pt"
+  
+  # Action Head 类型
+  # 支持: flow_matching_0, flow_matching_1, oft_1_0 (或简写 fm0, fm1, oft)
+  action_head_type: "oft_1_0"
+  
+  # VLM 配置
+  vlm_type: "eagle2_5_vl"  # 支持: qwen3_vl, eagle2_5_vl
+  vlm_model_path: "/home/dev/.cache/huggingface/hub/models--nvidia--GR00T-N1.5-3B/snapshots/869830fc749c35f34771aa5209f923ac57e4564e"
+  vlm_layers: [-1]  # 要提取的层索引
+  flip_images: true  # VLM 内部是否翻转图像
+  
+  # 数据集路径（用于加载归一化统计量 meta/stats.json）
+  # 必须正确配置，否则 state 归一化和 action 反归一化不会生效
+  # dataset_path: "/home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_spatial/libero_lerobot_spatial_sys0_eagle_-1"
+  
+  # Prompt 配置
+  # 内容顺序: images_first, text_first, interleaved, single_image
+  content_order: "images_first"
+  # 是否将指令转为小写
+  lowercase_instruction: true
+  # 是否添加 generation prompt (聊天模型设 true)
+  add_generation_prompt: true
+  # 是否添加 "What action should the robot take to {instruction}?" 前缀
+  add_action_prompt: false
+  # 自定义 prompt 模板（设 null 则由 add_action_prompt 自动决定）
+  # prompt_template: null
+  
+  # 推理配置
+  device: "cuda:0"
+  warmup_steps: 10  # 预热步数
+  
+  # 多 Task Suite 配置
+  # 每个 task suite 可指定独立的 action_head_ckpt 和 dataset_path
+  # 设为 null 表示该 suite 不可用，客户端请求时会返回 404
+  # 上方的 action_head_ckpt / dataset_path 作为默认值（向后兼容）
+  task_suites:
+    libero_spatial:
+      action_head_ckpt: "/home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_spatial/libero_lerobot_spatial_sys0_eagle_-1_weight/OFT1_0/layer_-1/p6000_bsz80*1*8_tb4_20000steps_layer-1_20260227_wpflow_matching_0_eagle_libero_test_newest_libero_spatial_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_20000/action_head.pt"
+      dataset_path: "/home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_spatial/libero_lerobot_spatial_sys0_eagle_-1"
+    libero_object: 
+      action_head_ckpt: "/home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_object/libero_lerobot_object_sys0_eagle_-1_weight/OFT1_0/1layer_-1/p6000_bsz80*1*8_tb4_20000steps_layer-1_20260303_wpflow_matching_0_eagle_libero_test_newest_libero_object_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_20000/action_head.pt"
+      dataset_path: "/home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_object/libero_lerobot_object_sys0_eagle_-1"
+    libero_goal: null
+    libero_10: null
+
+  # Action Head 特定配置（所有 task suite 共享架构参数）
+  action_head:
+    # 通用配置
+    # max_action_dim: 32
+    # max_state_dim: 64
+    # num_action_chunks: 16
+    # embodiment_id: 31
+    
+    # Flow Matching 1 特有配置
+    # vlm_output_dim: 1536  # Qwen3-VL-2B: 1536, 4B: 2560, 7B: 3584
+    # action_backbone_dim: 1536
+    
+    # OFT 特有配置 (如果使用 OFT)
+    llm_output_dim: 2048
+    num_vlm_hidden_layers: 1
+    action_dim: 7
+    proprio_dim: 8
+    use_diffusion: false
+    num_transformer_blocks: 4
+    num_attention_heads: 8
+    dropout: 0.1
+    action_head_hidden_dim: 4096
+
+# 预处理配置
+preprocess:
+  # 图像预处理
+  image:
+    # resize 尺寸 [width, height]，null 表示不 resize
+    resize: [128, 128]
+    # resize: [256, 256]
+    
+    # # 翻转配置
+    # flip_horizontal: true
+    # flip_vertical: true
+    
+    # 旋转 180 度
+    # rotate_180: true
+  
+  # 状态预处理
+  # 格式: index_configs.<索引>
+  state:
+    index_configs:
+      # 示例：索引 6 的夹爪状态，0 转换为 -1
+      # "6":
+      #   zero_to_minus_one: true
+      #   enable_normalization: false
+      
+      # 示例：索引 0 的位置 x，启用归一化
+      # "0":
+      #   enable_normalization: true
+      #   min_val: -0.5
+      #   max_val: 0.5
+      #   zero_to_minus_one: false
+      
+      # 示例：索引 7 的夹爪宽度，同时启用零值转换和归一化
+      # "7":
+      #   zero_to_minus_one: true
+      #   enable_normalization: true
+      #   min_val: 0.0
+      #   max_val: 0.085
+
+
+# ==================================
+# v1 公开 API 配置（/v1/act 使用）
+# ==================================
+
+# API Key 鉴权：通过环境变量 SAI0_API_KEYS 配置，此处无需明文写入
+# export SAI0_API_KEYS="sk-abc123,sk-xyz456"
+
+# 限流配置
+rate_limit:
+  # /v1/act 每分钟允许的最大请求数（格式符合 slowapi: "N/minute"）
+  # LIBERO 评测单 trial 最多 600 步，每步 1 次 API 调用，建议不低于 600/minute
+  v1_act: "6000/minute"
+
+# 推理队列配置
+queue:
+  enabled: true
+  maxsize: 32        # 队列最大长度
+  timeout: 60.0      # 单次请求排队+推理的超时秒数
+
+# ==================================
+# 示例配置
+# ==================================
+
+# 示例 1: Qwen3-VL-2B + Flow Matching 1 + LIBERO
+# pipeline:
+#   action_head_ckpt: "./Action_Heads/Flow_Matching_1/experiments/libero_spatial/checkpoints/epoch_0"
+#   action_head_type: "flow_matching_1"
+#   vlm_type: "qwen3_vl"
+#   vlm_model_path: "Qwen/Qwen3-VL-2B-Instruct"
+#   vlm_layers: [14]
+#   device: "cuda:0"
+#   action_head:
+#     vlm_output_dim: 1536
+#     num_action_chunks: 16
+# preprocess:
+#   image:
+#     resize: [256, 256]
+#     flip_horizontal: true
+#   state:
+#     index_configs:
+#       "6":
+#         zero_to_minus_one: true
+
+# 示例 2: Qwen3-VL-4B + OFT + 自定义归一化
+# pipeline:
+#   action_head_ckpt: "./Action_Heads/OFT1_0/experiments/qwen4b/checkpoints/best.pt"
+#   action_head_type: "oft_1_0"
+#   vlm_type: "qwen3_vl"
+#   vlm_model_path: "Qwen/Qwen3-VL-4B-Instruct"
+#   vlm_layers: [2, 6, 10]
+#   device: "cuda:0"
+#   action_head:
+#     llm_output_dim: 2560
+#     num_vlm_hidden_layers: 3
+#     action_dim: 7
+#     proprio_dim: 8
+# preprocess:
+#   image:
+#     resize: [320, 240]
+#   state:
+#     index_configs:
+#       "0":
+#         enable_normalization: true
+#         min_val: -1.0
+#         max_val: 1.0
+#       "1":
+#         enable_normalization: true
+#         min_val: -1.0
+#         max_val: 1.0
+#       "2":
+#         enable_normalization: true
+#         min_val: 0.0
+#         max_val: 1.0
+#       "6":
+#         zero_to_minus_one: true
+#         enable_normalization: true
+#         min_val: -1.0
+#         max_val: 1.0
+
+# 示例 3: Eagle 2.5 VL + Flow Matching 0
+# pipeline:
+#   action_head_ckpt: "./Action_Heads/Flow_Matching_0/experiments/eagle/checkpoints/epoch_5"
+#   action_head_type: "flow_matching_0"
+#   vlm_type: "eagle2_5_vl"
+#   vlm_model_path: "/path/to/GR00T-N1.5-3B"
+#   vlm_layers: [-1]
+#   flip_images: true
+#   device: "cuda:0"

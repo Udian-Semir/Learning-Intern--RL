@@ -1,0 +1,42 @@
+# Ignore all experiments folders
+experiments/
+
+# Ignore all logs folders
+logs/
+
+# Ignore all video* folders
+video*/
+
+# Pretrained models
+pretrained_action_head_structure.txt
+pretrained_action_head.pt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Batch training logs and state
+Action_Heads/batch_train_log/
+Action_Heads/.batch_train_state
+
+# Tool script outputs (PNG / NPZ / summary.json artifacts, do not track)
+tools/outputs/
+
+# Cumulative error plot dumps from deployment/tele_parad (large PNG artifacts)
+deployment/**/cumulative_error_plots*/

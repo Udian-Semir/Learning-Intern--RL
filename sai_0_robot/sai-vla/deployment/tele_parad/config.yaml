@@ -1,0 +1,146 @@
+# OFT 遥操作推理服务配置
+# ============================================================================
+
+# 设备配置
+device: "cuda:0"
+
+# 日志配置
+verbose: true  # 是否打印详细推理信息
+
+# 图像预处理配置
+image_preprocess:
+  # resize 尺寸 [width, height]，null 表示不 resize
+  resize: [512, 512]
+  # 水平翻转
+  flip_horizontal: false
+  # 垂直翻转
+  flip_vertical: false
+  # 旋转 180 度
+  rotate_180: false
+  # BGR 转 RGB (如果传入的是 BGR 格式图像，设为 true)
+  bgr_to_rgb: true
+
+# VLM Backbone 配置
+vlm:
+  # 模型类型: qwen3_vl, eagle2_5_vl, cosmos_reason_2b_vl
+  type: "qwen3_vl"
+  
+  # 模型路径 # ! 
+  # model_path: "/home/dev/.cache/huggingface/hub/models--nvidia--GR00T-N1.5-3B/snapshots/869830fc749c35f34771aa5209f923ac57e4564e"
+  # model_path: "Qwen/Qwen3-VL-2B-Instruct"
+  model_path: "/home/dev/.cache/huggingface/hub/models--Qwen--Qwen3-VL-4B-Instruct/snapshots/ebb281ec70b05090aa6165b016eac8ec08e71b17"
+
+  # 提取层 (Eagle: [-1], Qwen2B: [14], Qwen4B: [16])
+  layers: [1,18,36]
+  
+  # 图像翻转
+  flip_images: false
+  
+  # 内容顺序
+  content_order: "images_first"
+  
+  # 指令小写
+  lowercase_instruction: true
+  
+  # 添加 generation prompt
+  add_generation_prompt: true
+  
+  # Prompt 模板: simple, detailed, etc.
+  prompt_template: "detailed"
+
+# Hidden Dim (Eagle: 2048, Qwen2B: 2048, Qwen4B: 2560)
+hidden_dim: 2560
+
+# OFT Pipeline 配置
+oft:
+  # Checkpoint 路径 (必填)
+  checkpoint: "/home/dev/文档/huangwenlong/vla-data-pipeline/lerobot_output/dataset111_single_512_filter_weight/qwen2b/parad/p6000Task1_9_bsz32*2*8_tb8_60000steps_layer1_18_36_20260211_wptele_train_dataset111_single_512_filter_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_15000/action_head.pt"
+  
+  # Transformer blocks 数量
+  num_transformer_blocks: 8
+  
+  # 注意力头数量
+  num_attention_heads: 8
+  
+  # VLM 层数 (与 vlm.layers 长度对应)
+  num_vlm_layers: 3
+  
+  # Action head 隐藏层维度
+  action_head_hidden_dim: 4096
+
+# 动作配置
+chunk_size: 16
+action_dim: 7
+
+# Proprio 维度 (与训练时一致)
+proprio_dim: 7
+
+# State 预处理配置
+# 可选处理器: "hand_binary", "minmax_normalize", "gripper_binarize"
+state_process_order: ["minmax_normalize","gripper_binarize"]
+hand_binary_columns: []
+# hand_binary_threshold: 500
+state_euler_to_axisangle_columns: []
+
+# State 索引提取: 从原始 state (如 14 维) 中提取指定索引组成新的 state
+# 提取在所有预处理之前执行，提取后的索引数量必须等于 state_dim
+# 例如: 14 维 state 中提取右臂 7 维 → [7, 8, 9, 10, 11, 12, 13]
+# 不需要提取时设为 null
+state_select_indices: [6,7,8,9,10,11,13]
+
+state_dim: 7
+
+# State 最大最小值归一化配置
+state_normalize:
+  # stats.json 文件路径
+  stats_file: "/home/dev/文档/huangwenlong/vla-data-pipeline/lerobot_output/dataset111_single_512_filter/meta/stats.json"
+  # 需要归一化的 state 索引列表
+  columns: [0, 1, 2, 3, 4, 5]
+  # stats.json 中对应的 key
+  stats_key: "observation.state"
+
+# State gripper 二值化配置
+state_gripper_binarize:
+  # 需要二值化的 state 索引列表
+  columns: [6]
+  # 阈值: > threshold 为 1, <= threshold 为 -1
+  threshold: 0.5
+
+# 输出动作后处理配置
+action_postprocess:
+  # Action 反归一化: 与训练时一致，用 stats.json 的 action min/max 将 [-1,1] 还原为物理量纲
+  action_denormalize:
+    # 是否启用（必须与训练时归一化一致，否则输出为 [-1,1] 归一化值）
+    enabled: true
+    # stats.json 路径（通常与 state_normalize.stats_file 相同）
+    stats_file: "/home/dev/文档/huangwenlong/vla-data-pipeline/lerobot_output/dataset111_single_512_filter/meta/stats.json"
+    # stats.json 中 action 的 key，固定为 "action"
+    stats_key: "action"
+
+  # Gripper 二值化: 启用后，输出动作的 gripper 列会被二值化
+  # 普通模式: > threshold 变为 1, <= threshold 变为 0
+  # BCE 模式: logit → sigmoid → > threshold 变为 1, <= threshold 变为 -1
+  gripper_binarize:
+    # 是否启用 # 普通模式，大于0.5 为1，小于0.5为0
+    enabled: true
+    # 需要二值化的动作索引列表 (例如: [12, 13] 表示第 12、13 列)
+    columns: [6]
+    # 二值化阈值
+    threshold: 0.5
+    # BCE 模式: 训练时使用 BCEWithLogitsLoss 时需开启
+    # 开启后: 模型输出 logit → sigmoid 得概率 → > threshold 为 1, 否则为 0
+    # 且该列会跳过反归一化 (logit 不在 [-1,1] 范围内)
+    bce_mode: true
+  
+  # 零填充: 在输出动作中插入零
+  # 例如: 原始 [a0, a1, ..., a6] -> [0,0,0,0,0,0, a0, a1, ..., a5, 0, a6]
+  padding_zeros:
+    # 是否启用
+    enabled: true
+    # 在开头插入的零个数
+    prepend_count: 6
+    # 在索引 -1 (最后一个元素) 前插入的零个数
+    insert_before_last: 1
+
+# 默认任务指令
+default_instruction: "pick up the bottle"

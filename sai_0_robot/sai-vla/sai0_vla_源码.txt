@@ -1,0 +1,6002 @@
+文件：VLAs/Sai0_1/__init__.py
+"""
+Sai0_1 VLA 模块
+
+整合 VLM Backbone (S0_1) 和 Action Heads 的统一接口。
+
+================================================================================
+                              模块结构
+================================================================================
+
+VLAs/Sai0_1/
+├── __init__.py          # 模块入口 (当前文件)
+├── config.py            # 配置类
+├── data_utils.py        # 数据加载工具
+├── sai0_model.py        # 主模型类
+└── inference.py         # 推理工具
+
+================================================================================
+                              使用示例
+================================================================================
+
+1. 训练模式 (使用预提取的 VLM hidden states):
+
+    from VLAs.Sai0_1 import Sai0Config, Sai0Model, create_sai0_dataloader
+
+    # 创建配置
+    config = Sai0Config.for_qwen3_libero(
+        dataset_path="/path/to/lerobot_dataset",
+        pretrained_weights="./pretrained_action_head.pt",
+    )
+
+    # 创建数据加载器
+    dataloader, normalizers = create_sai0_dataloader(
+        dataset_path=config.data.dataset_path,
+        batch_size=32,
+        num_action_chunks=16,
+    )
+
+    # 创建模型 (只需要 Action Head)
+    model = Sai0Model(config)
+
+    # 训练循环
+    for backbone_output, action_head_inputs in dataloader:
+        loss = model.compute_loss(backbone_output, action_head_inputs)
+        loss.backward()
+        optimizer.step()
+
+2. 推理模式:
+
+    from VLAs.Sai0_1 import Sai0Inference
+    from PIL import Image
+    import numpy as np
+
+    # 从 checkpoint 加载
+    inference = Sai0Inference.from_checkpoint(
+        checkpoint_path="./checkpoints/best/action_head.pt",
+        vlm_type="qwen3_vl",
+        vlm_model_path="Qwen/Qwen3-VL-2B-Instruct",
+        dataset_path="/path/to/dataset",  # 用于加载归一化统计
+    )
+
+    # 准备输入
+    images = [Image.open("agentview.jpg"), Image.open("wrist.jpg")]
+    instruction = "pick up the red apple"
+    state = np.array([...])  # 当前机器人状态
+
+    # 预测动作
+    actions = inference.predict(images, instruction, state)
+    # actions: (num_chunks, action_dim)
+
+3. 数据集评估:
+
+    from VLAs.Sai0_1 import evaluate_checkpoint
+
+    results = evaluate_checkpoint(
+        checkpoint_path="./checkpoints/best/action_head.pt",
+        dataset_path="/path/to/eval_dataset",
+        vlm_type="qwen3_vl",
+        num_samples=100,
+    )
+    print(f"Mean Loss: {results['mean_loss']:.6f}")
+
+4. 快速推理 (一次性使用):
+
+    from VLAs.Sai0_1 import quick_inference
+
+    actions = quick_inference(
+        images=[img1, img2],
+        instruction="pick up the apple",
+        state=current_state,
+        checkpoint_path="./checkpoint.pt",
+
+文件：VLAs/Sai0_1/config.py
+"""
+Sai0_1 配置模块
+
+统一管理 VLM backbone 和 Action Head 的配置。
+
+使用示例:
+    from VLAs.Sai0_1 import Sai0Config
+
+    config = Sai0Config(
+        vlm_type="qwen3_vl",
+        vlm_model_path="Qwen/Qwen3-VL-2B-Instruct",
+        action_head_type="flow_matching",
+    )
+"""
+
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict, Any
+from pathlib import Path
+import json
+
+# ============================================================================
+# VLM 配置
+# ============================================================================
+
+@dataclass
+class VLMConfig:
+    """
+    VLM Backbone 配置
+
+    支持的模型类型:
+    - qwen3_vl: Qwen3-VL 系列 (2B, 4B, 7B)
+    - eagle2_5_vl: Eagle 2.5 VL (GR00T-N1.5-3B)
+    """
+
+    # 模型类型
+    model_type: str = "qwen3_vl"
+    """模型类型: qwen3_vl, eagle2_5_vl"""
+
+    # 模型路径
+    model_path: str = "Qwen/Qwen3-VL-2B-Instruct"
+    """模型路径或 HuggingFace ID
+    - Qwen: "Qwen/Qwen3-VL-2B-Instruct"
+    - Eagle: "/home/sythoid_01/.cache/huggingface/hub/models--nvidia--GR00T-N1.5-3B/snapshots/869830fc749c35f34771aa5209f923ac57e4564e"
+    """
+
+    # 设备
+    device: str = "cuda:0"
+    """运行设备"""
+
+    # 提取的隐藏层
+    layers: List[int] = field(default_factory=lambda: [14])
+    """要提取的层号
+    - Qwen3-VL-2B: [14] (推荐)
+    - Eagle 2.5 VL: [-1] (推荐)
+    """
+
+    # 数据类型
+    dtype: str = "bfloat16"
+    """数据类型: float32, float16, bfloat16"""
+
+    # Prompt 配置
+    prompt_template: str = "What action should the robot take to {instruction}?"
+    """Prompt 模板"""
+
+    content_order: str = "images_first"
+    """内容顺序: images_first, text_first, interleaved, single_image"""
+
+    lowercase_instruction: bool = True
+    """是否将指令转为小写"""
+
+    add_generation_prompt: bool = True
+    """是否添加 generation prompt (对于聊天模型)"""
+
+    # 图像配置
+    flip_images: bool = True
+    """是否翻转图像 (180度)"""
+
+    image_keys: List[str] = field(default_factory=lambda: ["agentview", "wrist"])
+    """图像视角键名"""
+
+    # 调试
+    verbose: bool = False
+    """详细输出"""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "model_type": self.model_type,
+            "model_path": self.model_path,
+            "device": self.device,
+
+文件：VLAs/Sai0_1/sai0_model.py
+"""
+Sai0_1 模型模块
+
+整合 VLM Backbone 和 Action Head 的统一模型接口。
+
+使用示例:
+    from VLAs.Sai0_1 import Sai0Model, Sai0Config
+
+    config = Sai0Config.for_qwen3_libero(
+        dataset_path="/path/to/dataset",
+        pretrained_weights="./pretrained.pt"
+    )
+
+    model = Sai0Model(config)
+
+    # 训练模式
+    loss = model.compute_loss(backbone_output, action_head_inputs)
+
+    # 推理模式
+    actions = model.predict(images, instruction, state)
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Dict, Any, Optional, List, Tuple, Union
+
+import torch
+import torch.nn as nn
+from transformers.feature_extraction_utils import BatchFeature
+
+# 添加路径
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+# ============================================================================
+# Sai0 Model
+# ============================================================================
+
+class Sai0Model(nn.Module):
+    """
+    Sai0 VLA 模型
+
+    整合 VLM Backbone 和 Action Head：
+    - VLM Backbone: 提取视觉-语言特征 (支持 Qwen3-VL, Eagle 2.5 VL)
+    - Action Head: 预测机器人动作 (Flow Matching)
+
+    工作流程:
+    1. 图像 + 指令 → VLM → Hidden States
+    2. Hidden States + State → Action Head → Actions
+
+    支持两种模式:
+    - 预计算模式 (训练): 使用预先提取的 VLM hidden states
+    - 实时模式 (推理): 实时提取 VLM hidden states
+    """
+
+    def __init__(
+        self,
+        config: "Sai0Config" = None,
+        vlm_backbone = None,
+        action_head = None,
+        device: str = "cuda:0",
+    ):
+        """
+        初始化 Sai0 模型
+
+        Args:
+            config: Sai0Config 配置对象
+            vlm_backbone: 预创建的 VLM backbone (可选)
+            action_head: 预创建的 Action Head (可选)
+            device: 设备
+        """
+        super().__init__()
+
+        self.config = config
+        self.device = device
+        self._vlm_backbone = vlm_backbone
+        self._action_head = action_head
+
+        # 延迟初始化标志
+        self._vlm_initialized = vlm_backbone is not None
+        self._action_head_initialized = action_head is not None
+
+    @property
+    def vlm_backbone(self):
+        """延迟加载 VLM Backbone"""
+        if self._vlm_backbone is None and self.config is not None:
+            self._vlm_backbone = self._create_vlm_backbone()
+            self._vlm_initialized = True
+
+文件：VLAs/Sai0_1/inference.py
+"""
+Sai0_1 推理模块
+
+提供便捷的推理接口，支持：
+- 单帧推理
+- 数据集批量推理 (评估)
+- 实时推理 (部署)
+
+使用示例:
+    from VLAs.Sai0_1 import Sai0Inference, Sai0Config
+
+    # 创建推理器
+    inference = Sai0Inference.from_checkpoint(
+        checkpoint_path="./checkpoints/best/action_head.pt",
+        vlm_type="qwen3_vl",
+        vlm_model_path="Qwen/Qwen3-VL-2B-Instruct",
+    )
+
+    # 单帧推理
+    actions = inference.predict(images, instruction, state)
+
+    # 数据集评估
+    results = inference.evaluate_dataset(dataset_path)
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Dict, Any, Optional, List, Tuple, Union
+import json
+import time
+
+import numpy as np
+import torch
+from PIL import Image
+from tqdm import tqdm
+
+# 添加路径
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+# ============================================================================
+# Sai0 推理器
+# ============================================================================
+
+class Sai0Inference:
+    """
+    Sai0 推理器
+
+    提供便捷的推理接口，封装 VLM 和 Action Head 的调用。
+    """
+
+    def __init__(
+        self,
+        model: "Sai0Model" = None,
+        config: "Sai0Config" = None,
+        normalizers: Dict = None,
+        device: str = "cuda:0",
+    ):
+        """
+        初始化推理器
+
+        Args:
+            model: Sai0Model 实例
+            config: Sai0Config 配置
+            normalizers: 归一化器字典
+            device: 设备
+        """
+        self.model = model
+        self.config = config
+        self.normalizers = normalizers
+        self.device = device
+
+        if model is not None:
+            self.model.eval()
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        checkpoint_path: str,
+        vlm_type: str = "qwen3_vl",
+        vlm_model_path: str = None,
+        dataset_path: str = None,
+        device: str = "cuda:0",
+        **kwargs
+    ) -> "Sai0Inference":
+        """
+        从 checkpoint 创建推理器
+
+
+文件：VLAs/Sai0_1/data_utils.py
+"""
+Sai0_1 数据工具模块
+
+整合 LeRobot Dataset Loader，提供统一的数据加载接口。
+
+使用示例:
+    from VLAs.Sai0_1 import create_dataloader, Sai0Config
+
+    config = Sai0Config.for_qwen3_libero(dataset_path="/path/to/dataset")
+    dataloader = create_dataloader(config)
+
+    for batch in dataloader:
+        # 使用数据
+        pass
+"""
+
+import os
+import sys
+import json
+import math
+from pathlib import Path
+from typing import Dict, Any, Optional, List, Tuple
+from dataclasses import dataclass
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
+from transformers.feature_extraction_utils import BatchFeature
+
+# 添加 utils 路径
+_UTILS_PATH = Path(__file__).parent.parent.parent / 'utils'
+if str(_UTILS_PATH) not in sys.path:
+    sys.path.insert(0, str(_UTILS_PATH))
+
+from lerobot_dataset_loader import (
+    LeRobotDataset,
+    collate_fn as lerobot_collate_fn,
+    create_lerobot_dataloader,
+)
+
+# ============================================================================
+# 常量
+# ============================================================================
+
+DEFAULT_EMBODIMENT_ID = 31
+
+# ============================================================================
+# 四元数转轴角
+# ============================================================================
+
+def quat2axisangle_torch(quat: torch.Tensor) -> torch.Tensor:
+    """
+    四元数转轴角 (PyTorch 批量版本)
+
+    参考: Isaac-GR00T/examples/Libero/eval/utils.py quat2axisangle()
+
+    Args:
+        quat: (batch, 4) 或 (batch, seq, 4)，四元数 (qx, qy, qz, qw)
+
+    Returns:
+        axis_angle: (batch, 3) 或 (batch, seq, 3)，轴角 (ax, ay, az)
+    """
+    original_shape = quat.shape
+
+    if quat.dim() == 3:
+        batch_size, seq_len, _ = quat.shape
+        quat = quat.reshape(-1, 4)
+    else:
+        batch_size, seq_len = quat.shape[0], None
+
+    qx, qy, qz, qw = quat[:, 0], quat[:, 1], quat[:, 2], quat[:, 3]
+    qw = torch.clamp(qw, -1.0, 1.0)
+    den = torch.sqrt(1.0 - qw * qw)
+    angle = 2.0 * torch.acos(qw)
+    small_angle_mask = den < 1e-8
+
+    axis_angle = torch.zeros(quat.shape[0], 3, dtype=quat.dtype, device=quat.device)
+
+    if (~small_angle_mask).any():
+        scale = angle[~small_angle_mask] / den[~small_angle_mask]
+        axis_angle[~small_angle_mask, 0] = qx[~small_angle_mask] * scale
+        axis_angle[~small_angle_mask, 1] = qy[~small_angle_mask] * scale
+        axis_angle[~small_angle_mask, 2] = qz[~small_angle_mask] * scale
+
+    if seq_len is not None:
+        axis_angle = axis_angle.reshape(batch_size, seq_len, 3)
+
+    return axis_angle
+
+
+文件：VLMs/S0_1/__init__.py
+"""
+S0_1 VLM Module
+
+提供 VLM backbone 和相关工具。
+
+主要功能:
+- Qwen3-VL backbone: 提取 hidden states
+- 配置系统: YAML + 代码覆盖
+- VLM 接口: 与 Action Head 组合
+
+使用示例:
+    from VLMs.S0_1 import create_backbone
+
+    # 创建 backbone
+    backbone = create_backbone(
+        model_path="Qwen/Qwen3-VL-2B-Instruct",
+        layers=[14],
+        device="cuda:0"
+    )
+
+    # 提取 hidden states
+    output = backbone.get_hidden_states(
+        images=[agentview_img, wrist_img],
+        instruction="pick up the apple"
+    )
+
+    # 获取 hidden states 列表（用于 Action Head）
+    vlm_features = output.hidden_states
+"""
+
+# 导入 backbone 模块
+from . import backbone
+
+# 便捷导入 - 最常用的类和函数
+from .backbone import (
+    Qwen3VLBackbone,
+    Qwen3VLConfig,
+    HiddenStateOutput,
+    create_backbone,
+    create_backbone_for_model,
+)
+
+# 从 qwen3_vl 模块导入更多内容
+from .backbone.qwen3_vl import (
+    load_config,
+    load_yaml_config,
+    get_default_config,
+    get_config_for_model,
+    connect_vlm_to_action_head,
+)
+
+__version__ = "0.1.0"
+
+__all__ = [
+    # 子模块
+    "backbone",
+    # 核心类
+    "Qwen3VLBackbone",
+    "Qwen3VLConfig",
+    "HiddenStateOutput",
+    # 创建函数
+    "create_backbone",
+    "create_backbone_for_model",
+    # 配置函数
+    "load_config",
+    "load_yaml_config",
+    "get_default_config",
+    "get_config_for_model",
+    # 组合工具
+    "connect_vlm_to_action_head",
+]
+
+文件：VLMs/S0_1/backbone/__init__.py
+"""
+S0_1 Backbone Module
+
+提供各种 VLM backbone 实现和统一的模型选择接口。
+
+可用的 Backbone:
+- qwen3_vl: Qwen3-VL 系列模型 (2B, 4B, 7B)
+- eagle2_5_vl: Eagle 2.5 VL 模型
+
+使用示例:
+    # 1. 使用统一的 model_selector
+    from VLMs.S0_1.backbone import create_vlm_backbone
+
+    backbone = create_vlm_backbone(
+        model_type="qwen3_vl",
+        model_path="Qwen/Qwen3-VL-2B-Instruct",
+        layers=[14]
+    )
+
+    # 2. 直接使用特定 backbone
+    from VLMs.S0_1.backbone import qwen3_vl
+
+    backbone = qwen3_vl.create_backbone(
+        model_path="Qwen/Qwen3-VL-2B-Instruct",
+        layers=[14]
+    )
+
+    # 3. 使用 Eagle 2.5 VL
+    from VLMs.S0_1.backbone import eagle2_5_vl
+
+    backbone = eagle2_5_vl.create_backbone(
+        model_path="/path/to/eagle_model",
+        layers=[-4]
+    )
+"""
+
+# 导入子模块
+from . import qwen3_vl
+from . import eagle2_5_vl
+
+# 导入模型选择器
+from .model_selector import (
+    create_vlm_backbone,
+    create_backbone_from_config,
+    get_prompt_config,
+    list_available_models,
+    list_prompt_templates,
+    list_content_orders,
+    ModelSelectorConfig,
+    PromptConfig,
+    ModelType,
+    RunMode,
+    ContentOrder,
+    PROMPT_TEMPLATES,
+    CONTENT_ORDER_CONFIGS,
+)
+
+# 配置类可以直接导入（无 torch 依赖）
+from .qwen3_vl import (
+    Qwen3VLConfig,
+    load_config as load_qwen_config,
+    load_yaml_config as load_qwen_yaml_config,
+    get_default_config as get_qwen_default_config,
+    get_config_for_model as get_qwen_config_for_model,
+)
+
+from .eagle2_5_vl import (
+    Eagle25VLConfig,
+    load_config as load_eagle_config,
+    load_yaml_config as load_eagle_yaml_config,
+    get_default_config as get_eagle_default_config,
+    get_config_for_model as get_eagle_config_for_model,
+)
+
+# 延迟导入的变量
+_Qwen3VLBackbone = None
+_Eagle25VLBackbone = None
+_HiddenStateOutput = None
+
+def _ensure_qwen_loaded():
+    """确保 Qwen 组件已加载"""
+    global _Qwen3VLBackbone, _HiddenStateOutput
+    if _Qwen3VLBackbone is None:
+        from .qwen3_vl import Qwen3VLBackbone as _B, HiddenStateOutput as _H
+        _Qwen3VLBackbone = _B
+        _HiddenStateOutput = _H
+
+def _ensure_eagle_loaded():
+    """确保 Eagle 组件已加载"""
+    global _Eagle25VLBackbone, _HiddenStateOutput
+
+文件：VLMs/S0_1/backbone/model_selector.py
+#!/usr/bin/env python3
+"""
+VLM 模型选择器 (Model Selector)
+
+提供统一的接口选择和配置不同的 VLM backbone。
+支持在 shell 脚本中通过参数配置模型、prompt 和运行模式。
+
+================================================================================
+                              可用参数一览表
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           基础配置参数                                        │
+├─────────────────────┬──────────────────────────┬────────────────────────────┤
+│ 参数                 │ 默认值                    │ 说明                        │
+├─────────────────────┼──────────────────────────┼────────────────────────────┤
+│ --model_type        │ qwen3_vl                 │ 模型类型                    │
+│                     │                          │ 可选: qwen3_vl, eagle2_5_vl│
+│                     │                          │       cosmos_reason_2b_vl  │
+│ --model_path        │ Qwen/Qwen3-VL-2B-Instruct│ 模型路径或 HuggingFace ID   │
+│                     │ (Eagle 见下方默认路径)    │                            │
+│ --device            │ cuda:0                   │ 设备 (cuda:0, cuda:1, cpu) │
+│ --layers            │ "14" (Qwen) / "-1" (Eagle)│ 提取层号，逗号分隔多层       │
+│ --mode              │ pipeline                 │ 运行模式                    │
+│                     │                          │ 可选: pipeline, hidden_state│
+│ --dtype             │ bfloat16                 │ 数据类型                    │
+│                     │                          │ 可选: float32, float16,    │
+│                     │                          │       bfloat16             │
+│ --verbose           │ False                    │ 详细输出 (打印 token 信息)  │
+└─────────────────────┴──────────────────────────┴────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Prompt 配置参数                                    │
+├─────────────────────┬──────────────────────────┬────────────────────────────┤
+│ 参数                 │ 默认值                    │ 说明                        │
+├─────────────────────┼──────────────────────────┼────────────────────────────┤
+│ --prompt_template   │ action                   │ Prompt 模板 (预设名或自定义)│
+│ --content_order     │ images_first             │ 内容顺序                    │
+│ --lowercase_instruction│ True                  │ 仅将 {instruction} 转小写   │
+│ --no_lowercase_instruction│ (关闭上述)          │ 不转换指令为小写            │
+│ --add_generation_prompt│ True                  │ 添加 generation prompt      │
+│ --no_generation_prompt│ (关闭上述)              │ 不添加 generation prompt    │
+└─────────────────────┴──────────────────────────┴────────────────────────────┘
+
+--lowercase_instruction 详细说明:
+    仅将 {instruction} 占位符的内容转为小写，模板其他部分保持原样。
+
+    示例:
+      模板: "What action should the robot take to {instruction}?"
+      指令: "Pick Up The Apple"
+
+      lowercase_instruction=True  → "What action should the robot take to pick up the apple?"
+      lowercase_instruction=False → "What action should the robot take to Pick Up The Apple?"
+
+    注意: "What" 始终保持大写，只有 {instruction} 部分受影响。
+
+--prompt_template 预设模板:
+┌─────────────┬────────────────────────────────────────────────────────────────┐
+│ 预设名称     │ 模板内容                                                        │
+├─────────────┼────────────────────────────────────────────────────────────────┤
+│ action      │ "What action should the robot take to {instruction}?"          │
+│ simple      │ "{instruction}"                                                │
+│ detailed    │ "Given the robot's current view, what action should be taken  │
+│             │  to accomplish: {instruction}"                                 │
+│ step_by_step│ "Based on the images, describe the next action step to        │
+│             │  {instruction}"                                                │
+└─────────────┴────────────────────────────────────────────────────────────────┘
+用法:
+  --prompt_template action                                    # 使用预设名称
+  --prompt_template "Robot needs to: {instruction}"           # 自定义模板
+  --prompt_template "Task: {task}. What action?"              # {task} 等同于 {instruction}
+  --prompt_template "执行: {instruction}，下一步动作是什么？"     # 支持中文
+
+--content_order 可选值 (图像按 --image_keys 顺序):
+┌───────────────┬──────────────────────────────────────────────────────────────┐
+│ 名称           │ 顺序                                                          │
+├───────────────┼──────────────────────────────────────────────────────────────┤
+│ images_first  │ [图像1] → [图像2] → ... → [文本 prompt]                       │
+│ text_first    │ [文本 prompt] → [图像1] → [图像2] → ...                       │
+│ interleaved   │ [图像1] → [文本 prompt] → [图像2] → ...                       │
+│ single_image  │ [图像1] → [文本 prompt] (仅使用第一张图像)                     │
+└───────────────┴──────────────────────────────────────────────────────────────┘
+示例: --image_keys "front,side" --content_order images_first
+      → [front 图] → [side 图] → [文本 prompt]
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           图像配置参数                                        │
+├─────────────────────┬──────────────────────────┬────────────────────────────┤
+│ 参数                 │ 默认值                    │ 说明                        │
+├─────────────────────┼──────────────────────────┼────────────────────────────┤
+
+文件：VLMs/S0_1/backbone/qwen3_vl/__init__.py
+"""
+Qwen3-VL Backbone Module
+
+提供 Qwen3-VL 模型的 hidden states 提取功能。
+可独立使用，也可与 Action Head 组合形成完整的 VLA 系统。
+
+核心组件:
+- Qwen3VLBackbone: VLM backbone 主类
+- Qwen3VLConfig: 配置类
+- HiddenStateOutput: hidden states 输出封装
+
+使用示例:
+    # 1. 基本使用
+    from VLMs.S0_1.backbone.qwen3_vl import Qwen3VLBackbone
+
+    backbone = Qwen3VLBackbone(
+        model_path="Qwen/Qwen3-VL-2B-Instruct",
+        layers=[14],
+        device="cuda:0"
+    )
+
+    output = backbone.get_hidden_states(
+        images=[agentview_img, wrist_img],
+        instruction="pick up the apple"
+    )
+
+    # 2. 与 Action Head 组合
+    vlm_features = output.hidden_states  # List[Tensor]
+    actions = action_head(vlm_features, proprioception)
+
+    # 3. 使用便捷函数
+    backbone = create_backbone("2b", device="cuda:0")
+
+    # 4. 自定义配置
+    from VLMs.S0_1.backbone.qwen3_vl import Qwen3VLConfig
+
+    config = Qwen3VLConfig(
+        model_path="Qwen/Qwen3-VL-4B-Instruct",
+        layers=[16, 17, 18],
+        prompt_template="Robot action: {instruction}",
+        content_preset="text_first"
+    )
+    backbone = Qwen3VLBackbone(config=config)
+"""
+
+# 导入核心类
+from .backbone import (
+    Qwen3VLBackbone,
+    HiddenStateOutput,
+    VLMInterface,
+)
+
+from .config import (
+    Qwen3VLConfig,
+    load_config,
+    load_yaml_config,
+    get_default_config,
+    get_config_for_model,
+)
+
+# 版本信息
+__version__ = "0.1.0"
+__author__ = "HuangWenlong"
+
+# 导出列表
+__all__ = [
+    # 核心类
+    "Qwen3VLBackbone",
+    "HiddenStateOutput",
+    "VLMInterface",
+    # 配置
+    "Qwen3VLConfig",
+    "load_config",
+    "load_yaml_config",
+    "get_default_config",
+    "get_config_for_model",
+    # 便捷函数
+    "create_backbone",
+    "create_backbone_for_model",
+]
+
+# ============================================================================
+# 便捷函数
+# ============================================================================
+
+def create_backbone(
+    model_path: str = "Qwen/Qwen3-VL-2B-Instruct",
+    layers: list = None,
+    device: str = "cuda",
+    **kwargs
+
+文件：VLMs/S0_1/backbone/qwen3_vl/config.py
+"""
+Qwen3-VL 配置模块
+
+提供配置类定义和配置加载功能。
+所有配置值都可以被代码传入的参数覆盖。
+
+使用示例:
+    from config import Qwen3VLConfig, load_config
+
+    # 加载默认配置
+    config = load_config()
+
+    # 加载并覆盖部分配置
+    config = load_config(
+        layers=[14, 15, 16],
+        prompt_template="Custom template: {instruction}"
+    )
+
+    # 直接创建配置对象
+    config = Qwen3VLConfig(
+        model_path="Qwen/Qwen3-VL-2B-Instruct",
+        layers=[14],
+        prompt_template="What action should the robot take to {instruction}?"
+    )
+"""
+
+from __future__ import annotations
+
+import os
+import yaml
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+# 配置文件默认路径
+DEFAULT_CONFIG_PATH = Path(__file__).parent / "prompt_config.yaml"
+
+@dataclass
+class PromptConfig:
+    """Prompt 配置"""
+    # Prompt 模板，支持 {instruction} 或 {task} 占位符
+    template: str = "What action should the robot take to {instruction}?"
+
+    # 是否将任务描述转为小写
+    lowercase_instruction: bool = True
+
+    # 是否添加 generation prompt
+    add_generation_prompt: bool = True
+
+@dataclass
+class ContentConfig:
+    """消息内容顺序配置"""
+    # 内容顺序，每个元素是 {"type": "image"|"text", "key": str}
+    order: List[Dict[str, str]] = field(default_factory=lambda: [
+        {"type": "image", "key": "agentview"},
+        {"type": "image", "key": "wrist"},
+        {"type": "text", "key": "prompt"}
+    ])
+
+    # 预设模板名称（可选，如果指定则使用预设）
+    preset: Optional[str] = None
+
+@dataclass
+class ImageConfig:
+    """图像处理配置"""
+    # 最大图像数量
+    max_images: int = 2
+
+    # 是否翻转图像 (180度旋转)
+    flip_images: bool = True
+
+    # resize 目标尺寸
+    resize_to: Optional[int] = None
+
+    # 图像键名
+    keys: Dict[str, str] = field(default_factory=lambda: {
+        "agentview": "agentview",
+        "wrist": "wrist"
+    })
+
+@dataclass
+class ModelConfig:
+    """VLM 模型配置"""
+    # 默认提取的隐藏层
+    default_layers: List[int] = field(default_factory=lambda: [14])
+
+    # 数据类型
+    dtype: str = "bfloat16"
+
+    # 是否使用 trust_remote_code
+
+文件：VLMs/S0_1/backbone/qwen3_vl/backbone.py
+"""
+Qwen3-VL Backbone 实现
+
+提供 VLM hidden states 提取接口，可与 Action Head 组合使用。
+
+设计理念:
+- VLM 只负责输出 hidden states，不关心下游如何使用
+- 配置可通过 YAML 文件定义，也可通过代码参数覆盖
+- 提供清晰的接口，方便与各种 Action Head 组合
+
+使用示例:
+    from backbone import Qwen3VLBackbone
+
+    # 基本使用
+    backbone = Qwen3VLBackbone(model_path="Qwen/Qwen3-VL-2B-Instruct")
+    hidden_states = backbone.get_hidden_states(images, instruction)
+
+    # 自定义配置
+    backbone = Qwen3VLBackbone(
+        model_path="Qwen/Qwen3-VL-4B-Instruct",
+        layers=[16, 17, 18],
+        prompt_template="Robot action for: {instruction}",
+        device="cuda:0"
+    )
+
+    # 与 Action Head 组合
+    vlm_features = backbone.get_hidden_states(images, instruction)
+    actions = action_head(vlm_features, proprioception)
+"""
+
+from __future__ import annotations
+
+import cv2
+import numpy as np
+import torch
+from dataclasses import dataclass
+from pathlib import Path
+from PIL import Image
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+# 导入配置
+from .config import Qwen3VLConfig, load_config
+
+# 类型定义
+ImageInput = Union[str, Path, Image.Image, np.ndarray, torch.Tensor]
+
+@dataclass
+class HiddenStateOutput:
+    """
+    Hidden States 输出结构
+
+    这个数据类封装了 VLM 输出的所有信息，方便与 Action Head 对接。
+    """
+    # 核心输出: hidden states 列表
+    # 每个元素形状: (batch_size, seq_len, hidden_dim)
+    hidden_states: List[torch.Tensor]
+
+    # 提取的层号
+    layer_indices: List[int]
+
+    # 元数据
+    metadata: Dict[str, Any]
+
+    @property
+    def num_layers(self) -> int:
+        """返回层数"""
+        return len(self.hidden_states)
+
+    @property
+    def hidden_dim(self) -> int:
+        """返回 hidden dimension"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[-1]
+        return 0
+
+    @property
+    def seq_len(self) -> int:
+        """返回序列长度"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[1]
+        return 0
+
+    @property
+    def batch_size(self) -> int:
+        """返回 batch size"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[0]
+        return 0
+
+    def to_stacked_tensor(self) -> torch.Tensor:
+
+文件：VLMs/S0_1/backbone/eagle2_5_vl/backbone.py
+"""
+Eagle 2.5 VL Backbone 实现
+
+提供 VLM hidden states 提取接口，可与 Action Head 组合使用。
+
+设计理念:
+- VLM 只负责输出 hidden states，不关心下游如何使用
+- 配置可通过 YAML 文件定义，也可通过代码参数覆盖
+- 提供清晰的接口，方便与各种 Action Head 组合
+
+使用示例:
+    from backbone import Eagle25VLBackbone
+
+    # 基本使用
+    backbone = Eagle25VLBackbone(model_path="/path/to/eagle_model")
+    hidden_states = backbone.get_hidden_states(images, instruction)
+
+    # 自定义配置
+    backbone = Eagle25VLBackbone(
+        model_path="/path/to/eagle_model",
+        layers=[-4, -3, -2],
+        prompt_template="Robot action for: {instruction}",
+        device="cuda:0"
+    )
+
+    # 与 Action Head 组合
+    vlm_features = backbone.get_hidden_states(images, instruction)
+    actions = action_head(vlm_features, proprioception)
+"""
+
+from __future__ import annotations
+
+import sys
+import os
+import cv2
+import numpy as np
+import torch
+from dataclasses import dataclass
+from pathlib import Path
+from PIL import Image
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+# 导入配置
+from .config import Eagle25VLConfig, load_config
+
+# 类型定义
+ImageInput = Union[str, Path, Image.Image, np.ndarray, torch.Tensor]
+
+@dataclass
+class HiddenStateOutput:
+    """
+    Hidden States 输出结构
+
+    这个数据类封装了 VLM 输出的所有信息，方便与 Action Head 对接。
+    """
+    # 核心输出: hidden states 列表
+    # 每个元素形状: (batch_size, seq_len, hidden_dim)
+    hidden_states: List[torch.Tensor]
+
+    # 提取的层号
+    layer_indices: List[int]
+
+    # 元数据
+    metadata: Dict[str, Any]
+
+    @property
+    def num_layers(self) -> int:
+        """返回层数"""
+        return len(self.hidden_states)
+
+    @property
+    def hidden_dim(self) -> int:
+        """返回 hidden dimension"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[-1]
+        return 0
+
+    @property
+    def seq_len(self) -> int:
+        """返回序列长度"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[1]
+        return 0
+
+    @property
+    def batch_size(self) -> int:
+        """返回 batch size"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[0]
+        return 0
+
+文件：VLMs/S0_1/backbone/cosmos_reason_2b_vl/backbone.py
+"""
+Cosmos Reason 2B VL Backbone 实现
+
+提供 VLM hidden states 提取接口，可与 Action Head 组合使用。
+
+设计理念:
+- VLM 只负责输出 hidden states，不关心下游如何使用
+- 配置可通过 YAML 文件定义，也可通过代码参数覆盖
+- 提供清晰的接口，方便与各种 Action Head 组合
+
+使用示例:
+    from backbone import CosmosReason2BVLBackbone
+
+    # 基本使用
+    backbone = CosmosReason2BVLBackbone(model_path="/path/to/cosmos_model")
+    hidden_states = backbone.get_hidden_states(images, instruction)
+
+    # 自定义配置
+    backbone = CosmosReason2BVLBackbone(
+        model_path="/path/to/cosmos_model",
+        layers=[-1],
+        prompt_template="Robot action for: {instruction}",
+        device="cuda:0"
+    )
+
+    # 与 Action Head 组合
+    vlm_features = backbone.get_hidden_states(images, instruction)
+    actions = action_head(vlm_features, proprioception)
+"""
+
+from __future__ import annotations
+
+import sys
+import os
+import cv2
+import numpy as np
+import torch
+from dataclasses import dataclass
+from pathlib import Path
+from PIL import Image
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+# 导入配置
+from .config import CosmosReason2BVLConfig, load_config
+
+# 类型定义
+ImageInput = Union[str, Path, Image.Image, np.ndarray, torch.Tensor]
+
+@dataclass
+class HiddenStateOutput:
+    """
+    Hidden States 输出结构
+
+    这个数据类封装了 VLM 输出的所有信息，方便与 Action Head 对接。
+    """
+    # 核心输出: hidden states 列表
+    # 每个元素形状: (batch_size, seq_len, hidden_dim)
+    hidden_states: List[torch.Tensor]
+
+    # 提取的层号
+    layer_indices: List[int]
+
+    # 元数据
+    metadata: Dict[str, Any]
+
+    @property
+    def num_layers(self) -> int:
+        """返回层数"""
+        return len(self.hidden_states)
+
+    @property
+    def hidden_dim(self) -> int:
+        """返回 hidden dimension"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[-1]
+        return 0
+
+    @property
+    def seq_len(self) -> int:
+        """返回序列长度"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[1]
+        return 0
+
+    @property
+    def batch_size(self) -> int:
+        """返回 batch size"""
+        if self.hidden_states:
+            return self.hidden_states[0].shape[0]
+        return 0
+
+文件：Action_Heads/__init__.py
+"""
+Action Heads Module
+
+Contains various action head implementations:
+- OFT1_0: Optimal Flow Transport action head
+- Flow_Matching_0: Flow Matching action head (version 0)
+- Flow_Matching_1: Flow Matching action head (version 1)
+"""
+
+
+文件：Action_Heads/Flow_Matching_0/config.py
+"""
+Flow Matching Action Head Configuration
+"""
+
+# 支持多种导入方式，提高兼容性
+try:
+    # 方式1: 绝对导入（当作为模块直接导入时）
+    from models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+except ImportError:
+    try:
+        # 方式2: 相对导入（当作为包的一部分导入时）
+        from .models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+    except ImportError:
+        try:
+            # 方式3: 从 Action_Heads.Flow_Matching_0 包导入
+            from Action_Heads.Flow_Matching_0.models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+        except ImportError:
+            # 方式4: 添加路径后导入
+            import sys
+            from pathlib import Path
+            # 添加当前目录到路径
+            current_dir = Path(__file__).parent
+            if str(current_dir) not in sys.path:
+                sys.path.insert(0, str(current_dir))
+            from models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+
+def get_flowmatching_action_head_config_original(
+    action_backbone_dim: int = 1536,
+    vlm_output_dim: int = 2048,
+    vl_self_attention_head_dim: int = 64,
+    vl_self_attention_num_attention_heads: int = 32,
+    action_dim: int = 16,
+    action_horizon: int = 16,
+    max_state_dim: int = 64,
+    max_action_dim: int = 32,
+) -> FlowmatchingActionHeadConfig:
+    """
+    创建 FlowMatching ActionHead 的配置（原始完整版）
+    与原项目保持完全一致的配置参数
+
+    Args:
+        action_backbone_dim: Action backbone 特征维度 (默认 1536)
+        vlm_output_dim: VLM 输出维度 (默认 2048)
+        vl_self_attention_head_dim: VL self-attention head 维度 (默认 64)
+        vl_self_attention_num_attention_heads: VL self-attention head 数量 (默认 32)
+        action_dim: 动作空间维度
+        action_horizon: 动作预测时间步长
+        max_state_dim: 最大状态维度
+        max_action_dim: 最大动作维度
+
+    Returns:
+        FlowmatchingActionHeadConfig 实例
+    """
+    cfg = FlowmatchingActionHeadConfig(
+        add_pos_embed=True,
+        model_dtype='float32',
+        diffusion_model_cfg={
+            'attention_head_dim': 48,
+            'cross_attention_dim': vlm_output_dim,
+            'dropout': 0.2,
+            'final_dropout': True,
+            'interleave_self_attention': True,
+            'norm_type': 'ada_norm',
+            'num_attention_heads': 32,
+            'num_layers': 16,
+            'output_dim': 1024,
+            'positional_embeddings': None,
+        },
+        input_embedding_dim=action_backbone_dim,
+        backbone_embedding_dim=vlm_output_dim,
+        hidden_size=1024,
+        max_seq_len=1024,
+        action_dim=action_dim,
+        action_horizon=action_horizon,
+        noise_beta_alpha=1.5,
+        noise_beta_beta=1.0,
+        noise_s=0.999,
+        num_timestep_buckets=1000,
+        num_inference_timesteps=4,
+        max_num_embodiments=32,
+        tune_projector=True,
+        tune_diffusion_model=True,
+        load_pretrained_det_decode_layer_path=None,
+        detection_coeff=1.0,
+        freeze_decode_layer=False,
+        expand_batch=None,
+        use_vlln=True,
+        vl_self_attention_cfg={
+            'attention_head_dim': vl_self_attention_head_dim,
+            'dropout': 0.2,
+
+文件：Action_Heads/Flow_Matching_0/models/__init__.py
+# Flow Matching 0 models package
+
+文件：Action_Heads/Flow_Matching_0/models/action_head/__init__.py
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+文件：Action_Heads/Flow_Matching_0/models/action_head/action_encoder.py
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import torch
+import torch.nn as nn
+
+def swish(x):
+    return x * torch.sigmoid(x)
+
+class SinusoidalPositionalEncoding(nn.Module):
+    """
+    Produces a sinusoidal encoding of shape (B, T, w)
+    given timesteps of shape (B, T).
+    """
+
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+    def forward(self, timesteps):
+        # timesteps: shape (B, T)
+        # We'll compute sin/cos frequencies across dim T
+        timesteps = timesteps.float()  # ensure float
+
+        B, T = timesteps.shape
+        device = timesteps.device
+
+        half_dim = self.embedding_dim // 2
+        # typical log space frequencies for sinusoidal encoding
+        exponent = -torch.arange(half_dim, dtype=torch.float, device=device) * (
+            torch.log(torch.tensor(10000.0)) / half_dim
+        )
+        # Expand timesteps to (B, T, 1) then multiply
+        freqs = timesteps.unsqueeze(-1) * exponent.exp()  # (B, T, half_dim)
+
+        sin = torch.sin(freqs)
+        cos = torch.cos(freqs)
+        enc = torch.cat([sin, cos], dim=-1)  # (B, T, w)
+
+        return enc
+
+class ActionEncoder(nn.Module):
+    def __init__(self, action_dim, hidden_size):
+        super().__init__()
+        self.hidden_size = hidden_size
+
+        # W1: R^{w x d}, W2: R^{w x 2w}, W3: R^{w x w}
+        self.W1 = nn.Linear(action_dim, hidden_size)  # (d -> w)
+        self.W2 = nn.Linear(2 * hidden_size, hidden_size)  # (2w -> w)
+        self.W3 = nn.Linear(hidden_size, hidden_size)  # (w -> w)
+
+        self.pos_encoding = SinusoidalPositionalEncoding(hidden_size)
+
+    def forward(self, actions, timesteps):
+        """
+        actions:   shape (B, T, action_dim)
+        timesteps: shape (B,)  -- a single scalar per batch item
+        returns:   shape (B, T, hidden_size)
+        """
+        B, T, _ = actions.shape
+
+        # 1) Expand each batch's single scalar time 'tau' across all T steps
+        #    so that shape => (B, T)
+        #    e.g. if timesteps is (B,), replicate across T
+        if timesteps.dim() == 1 and timesteps.shape[0] == B:
+            # shape (B,) => (B,T)
+            timesteps = timesteps.unsqueeze(1).expand(-1, T)
+        else:
+            raise ValueError(
+                "Expected `timesteps` to have shape (B,) so we can replicate across T."
+            )
+
+        # 2) Standard action MLP step for shape => (B, T, w)
+        a_emb = self.W1(actions)
+
+        # 3) Get the sinusoidal encoding (B, T, w)
+        tau_emb = self.pos_encoding(timesteps).to(dtype=a_emb.dtype)
+
+
+文件：Action_Heads/Flow_Matching_0/models/action_head/cross_attention_dit.py
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from typing import Optional
+
+import torch
+import torch.nn.functional as F
+from diffusers import ConfigMixin, ModelMixin
+from diffusers.configuration_utils import register_to_config
+from diffusers.models.attention import Attention, FeedForward
+from diffusers.models.embeddings import (
+    SinusoidalPositionalEmbedding,
+    TimestepEmbedding,
+    Timesteps,
+)
+from torch import nn
+
+class TimestepEncoder(nn.Module):
+    def __init__(self, embedding_dim, compute_dtype=torch.float32):
+        super().__init__()
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=1)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+    def forward(self, timesteps):
+        dtype = next(self.parameters()).dtype
+        timesteps_proj = self.time_proj(timesteps).to(dtype)
+        timesteps_emb = self.timestep_embedder(timesteps_proj)  # (N, D)
+        return timesteps_emb
+
+class AdaLayerNorm(nn.Module):
+    def __init__(
+        self,
+        embedding_dim: int,
+        norm_elementwise_affine: bool = False,
+        norm_eps: float = 1e-5,
+        chunk_dim: int = 0,
+    ):
+        super().__init__()
+        self.chunk_dim = chunk_dim
+        output_dim = embedding_dim * 2
+        self.silu = nn.SiLU()
+        self.linear = nn.Linear(embedding_dim, output_dim)
+        self.norm = nn.LayerNorm(output_dim // 2, norm_eps, norm_elementwise_affine)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        temb: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        temb = self.linear(self.silu(temb))
+        scale, shift = temb.chunk(2, dim=1)
+        x = self.norm(x) * (1 + scale[:, None]) + shift[:, None]
+        return x
+
+class BasicTransformerBlock(nn.Module):
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        dropout=0.0,
+        cross_attention_dim: Optional[int] = None,
+        activation_fn: str = "geglu",
+        attention_bias: bool = False,
+        upcast_attention: bool = False,
+        norm_elementwise_affine: bool = True,
+        norm_type: str = "layer_norm",  # 'layer_norm', 'ada_norm', 'ada_norm_zero', 'ada_norm_single', 'ada_norm_continuous', 'layer_norm_i2vgen'
+        norm_eps: float = 1e-5,
+        final_dropout: bool = False,
+        attention_type: str = "default",
+        positional_embeddings: Optional[str] = None,
+        num_positional_embeddings: Optional[int] = None,
+        ff_inner_dim: Optional[int] = None,
+        ff_bias: bool = True,
+        attention_out_bias: bool = True,
+    ):
+        super().__init__()
+        self.dim = dim
+
+文件：Action_Heads/Flow_Matching_0/models/action_head/flow_matching_action_head.py
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from dataclasses import dataclass, field
+
+import torch
+import torch.nn.functional as F
+from torch import nn
+from torch.distributions import Beta
+from transformers import PretrainedConfig
+from transformers.feature_extraction_utils import BatchFeature
+
+# from gr00t.model.action_head.action_encoder import (
+#     SinusoidalPositionalEncoding,
+#     swish,
+# )
+
+from .action_encoder import (
+    SinusoidalPositionalEncoding,
+    swish,
+)
+
+from .cross_attention_dit import DiT, SelfAttentionTransformer
+
+class CategorySpecificLinear(nn.Module):
+    def __init__(self, num_categories, input_dim, hidden_dim):
+        super().__init__()
+        self.num_categories = num_categories
+        # For each category, we have separate weights and biases.
+        self.W = nn.Parameter(0.02 * torch.randn(num_categories, input_dim, hidden_dim))
+        self.b = nn.Parameter(torch.zeros(num_categories, hidden_dim))
+
+    def forward(self, x, cat_ids):
+        selected_W = self.W[cat_ids]
+        selected_b = self.b[cat_ids]
+        return torch.bmm(x, selected_W) + selected_b.unsqueeze(1)
+
+class CategorySpecificMLP(nn.Module):
+    def __init__(self, num_categories, input_dim, hidden_dim, output_dim):
+        super().__init__()
+        self.num_categories = num_categories
+        self.layer1 = CategorySpecificLinear(num_categories, input_dim, hidden_dim)
+        self.layer2 = CategorySpecificLinear(num_categories, hidden_dim, output_dim)
+
+    def forward(self, x, cat_ids):
+        hidden = F.relu(self.layer1(x, cat_ids))
+        return self.layer2(hidden, cat_ids)
+
+class MultiEmbodimentActionEncoder(nn.Module):
+    def __init__(self, action_dim, hidden_size, num_embodiments):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.num_embodiments = num_embodiments
+
+        # W1: R^{w x d}, W2: R^{w x 2w}, W3: R^{w x w}
+        self.W1 = CategorySpecificLinear(num_embodiments, action_dim, hidden_size)  # (d -> w)
+        self.W2 = CategorySpecificLinear(num_embodiments, 2 * hidden_size, hidden_size)  # (2w -> w)
+        self.W3 = CategorySpecificLinear(num_embodiments, hidden_size, hidden_size)  # (w -> w)
+        self.pos_encoding = SinusoidalPositionalEncoding(hidden_size)
+
+    def forward(self, actions, timesteps, cat_ids):
+        """
+        actions:   shape (B, T, action_dim)
+        timesteps: shape (B,)  -- a single scalar per batch item
+        cat_ids:   shape (B,)
+        returns:   shape (B, T, hidden_size)
+        """
+        B, T, _ = actions.shape
+
+        # 1) Expand each batch's single scalar time 'tau' across all T steps
+        #    so that shape => (B, T)
+        #    e.g. if timesteps is (B,), replicate across T
+        if timesteps.dim() == 1 and timesteps.shape[0] == B:
+            # shape (B,) => (B,T)
+            timesteps = timesteps.unsqueeze(1).expand(-1, T)
+        else:
+            raise ValueError(
+                "Expected `timesteps` to have shape (B,) so we can replicate across T."
+
+文件：Action_Heads/Flow_Matching_0/infer_once.py
+"""
+Flow Matching Action Head 单次推理脚本
+Single Inference Script for Flow Matching Action Head
+
+使用方法 Usage:
+  python infer_once.py --ckpt_dir ./checkpoints/epoch_0
+  python infer_once.py --ckpt_dir ./checkpoints/best --npz /path/to/sample.npz
+
+============================================================================
+NPZ 文件格式要求 Required NPZ File Format:
+============================================================================
+
+如果要使用真实数据进行推理，需要提供包含以下字段的 .npz 文件：
+If using real data for inference, provide a .npz file with the following fields:
+
+必需字段 Required fields:
+  - backbone_features: np.ndarray, shape (seq_len, hidden_dim)
+    例如 Example: (1536, 2048) 表示 1536 个 token，每个 2048 维
+    说明: VLM 输出的特征向量，通常是多层拼接后的结果
+    Note: Feature vectors from VLM, usually concatenated from multiple layers
+
+  - backbone_attention_mask: np.ndarray, shape (seq_len,), dtype=int64
+    例如 Example: (1536,) 全1表示所有token都有效
+    说明: 注意力掩码，1表示有效token，0表示padding
+    Note: Attention mask, 1=valid token, 0=padding
+
+  - state: np.ndarray, shape (1, state_dim)
+    例如 Example: (1, 64) 表示 1 个时间步，64 维状态
+    说明: 机器人当前状态（关节位置、速度等），需要padding到max_state_dim
+    Note: Robot current state (joint positions, velocities, etc.), padded to max_state_dim
+
+创建 NPZ 示例 Example of creating NPZ:
+  ```python
+  import numpy as np
+
+  # 假设从 VLM 获取了 3 层隐藏状态，每层 512 tokens，每个 token 2048 维
+  # Assume we got 3 layers of hidden states from VLM, 512 tokens per layer, 2048 dim each
+  vlm_hidden = ...  # shape: (3, 512, 2048)
+
+  # 拼接所有层: (3, 512, 2048) -> (1536, 2048)
+  # Concatenate all layers
+  backbone_features = vlm_hidden.reshape(-1, 2048)  # (1536, 2048)
+
+  # 创建注意力掩码（全1）
+  # Create attention mask (all ones)
+  backbone_attention_mask = np.ones(1536, dtype=np.int64)
+
+  # 机器人状态（假设16维，需要padding到64维）
+  # Robot state (assume 16-dim, need padding to 64-dim)
+  state = np.zeros((1, 64), dtype=np.float32)
+  state[0, :16] = [0.1, 0.2, ...]  # 实际状态值 actual state values
+
+  # 保存为 NPZ
+  # Save as NPZ
+  np.savez('sample.npz',
+           backbone_features=backbone_features,
+           backbone_attention_mask=backbone_attention_mask,
+           state=state)
+  ```
+
+注意事项 Notes:
+  - backbone_features 的 seq_len 应该是 num_layers * tokens_per_layer
+  - state 需要 padding 到 max_state_dim（通常是64）
+  - 所有数组的 dtype 应该是 float32 或 int64
+  - NPZ file should match the dimensions expected by the model
+============================================================================
+"""
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+from transformers.feature_extraction_utils import BatchFeature
+
+from models.action_head.flow_matching_action_head import FlowmatchingActionHead, FlowmatchingActionHeadConfig
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ckpt_dir", type=str, required=True)
+    parser.add_argument("--device", type=str, default="cuda")
+    # 若未提供NPZ，则用随机输入
+    parser.add_argument("--npz", type=str, default="")
+    args = parser.parse_args()
+
+    ckpt_dir = Path(args.ckpt_dir)
+    cfg_dict = json.load(open(ckpt_dir / "config.json"))
+    # transformers.PretrainedConfig不存储额外字段到__dict__之外，这里直接用dict构造
+    cfg = FlowmatchingActionHeadConfig(**{k: v for k, v in cfg_dict.items() if not k.startswith("_")})
+
+文件：Action_Heads/Flow_Matching_0/extract_pretrained_weights.py
+"""
+从 GR00T-N1.5 预训练模型中提取 Action Head 权重
+"""
+import argparse
+import json
+from pathlib import Path
+from safetensors import safe_open
+import torch
+
+def extract_action_head_weights(pretrained_dir: Path, output_path: Path):
+    """
+    从预训练模型中提取 action_head 相关权重
+
+    Args:
+        pretrained_dir: 预训练模型目录
+        output_path: 输出权重文件路径
+    """
+    # 读取索引文件找到权重分布
+    index_file = pretrained_dir / "model.safetensors.index.json"
+    with open(index_file) as f:
+        index = json.load(f)
+
+    weight_map = index["weight_map"]
+
+    # 找到所有 action_head 相关的权重
+    action_head_weights = {}
+    files_to_load = set()
+
+    for key, file in weight_map.items():
+        if "action_head" in key:
+            files_to_load.add(file)
+
+    print(f"Found {len(files_to_load)} files containing action_head weights")
+
+    # 从 safetensors 文件中加载权重
+    for file in files_to_load:
+        file_path = pretrained_dir / file
+        print(f"Loading from {file}")
+
+        with safe_open(file_path, framework="pt", device="cpu") as f:
+            for key in f.keys():
+                if "action_head" in key:
+                    # 去掉前缀 "action_head."
+                    new_key = key.replace("action_head.", "")
+                    action_head_weights[new_key] = f.get_tensor(key)
+                    print(f"  Extracted: {key} -> {new_key}")
+
+    # 保存权重
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(action_head_weights, output_path)
+    print(f"\nSaved {len(action_head_weights)} weights to {output_path}")
+
+    # 打印权重统计
+    total_params = sum(w.numel() for w in action_head_weights.values())
+    print(f"Total parameters: {total_params:,}")
+
+    # 保存模型结构到txt文件（类似print(model)的输出）
+    structure_file = output_path.parent / (output_path.stem + "_structure.txt")
+    with open(structure_file, "w") as f:
+        # 构建类似 nn.Module 的 print 输出格式
+        f.write("FlowmatchingActionHead(\n")
+
+        # 按模块分组显示权重
+        modules = {}
+        for key in sorted(action_head_weights.keys()):
+            # 提取模块名（第一个点之前的部分）
+            if "." in key:
+                module_name = key.split(".")[0]
+            else:
+                module_name = "root"
+
+            if module_name not in modules:
+                modules[module_name] = []
+            modules[module_name].append(key)
+
+        # 输出每个模块
+        for module_name in sorted(modules.keys()):
+            if module_name == "root":
+                continue
+
+            keys = modules[module_name]
+            # 统计该模块的参数量
+            module_params = sum(action_head_weights[k].numel() for k in keys)
+
+            f.write(f"  ({module_name}): Module with {len(keys)} parameters, total params: {module_params:,}\n")
+
+            # 列出该模块的所有权重
+            for key in keys:
+                tensor = action_head_weights[key]
+                f.write(f"    {key}: {tuple(tensor.shape)}\n")
+
+文件：Action_Heads/Flow_Matching_0/train_with_pretrained_action_head_weight_multigpu.py
+"""
+训练脚本 - 支持从预训练权重初始化 (多GPU分布式训练版本)
+使用 LeRobot Dataset Loader 加载真实数据
+
+多GPU训练使用方法 (Multi-GPU Training):
+  # 使用 torchrun 启动分布式训练 (推荐)
+  torchrun --nproc_per_node=4 train_with_pretrained_action_head_weight_eagle25_multigpu.py \
+    --data_path /path/to/dataset \
+    --pretrained_weights ./pretrained_action_head.pt \
+    --steps 1000
+
+  # 指定特定GPU运行
+  CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node=4 train_with_pretrained_action_head_weight_eagle25_multigpu.py \
+    --data_path /path/to/dataset
+
+单GPU训练使用方法 (Single-GPU Training):
+  python train_with_pretrained_action_head_weight_eagle25_multigpu.py \
+    --data_path /path/to/dataset \
+    --device cuda:0
+
+参数说明:
+  --gradient_accumulation_steps: 梯度累积步数 (默认: 1)
+  --local_rank: 本地进程排名 (由 torchrun 自动设置，无需手动指定)
+"""
+import argparse
+import datetime
+import json
+import os
+import sys
+from pathlib import Path
+from typing import List, Optional
+import time
+from dataclasses import dataclass, field
+from functools import partial
+
+import numpy as np
+import torch
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR
+from torch.cuda.amp import autocast, GradScaler  # 混合精度训练
+from transformers.feature_extraction_utils import BatchFeature
+from tqdm import tqdm
+import wandb
+
+from models.action_head.flow_matching_action_head import FlowmatchingActionHead
+from config import get_flowmatching_action_head_config_original
+
+# 添加 utils 路径以导入 lerobot_dataset_loader
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'utils'))
+from lerobot_dataset_loader import (
+    create_lerobot_dataloader,
+    preload_vlm_cache_distributed,
+    get_total_vlm_states,
+)
+import atexit
+import signal
+DEFAULT_EMBODIMENT_ID = 31
+
+# 全局变量用于清理共享内存
+_shared_vlm_cache_global = None
+_shared_vlm_cache_rank = None
+
+def cleanup_shared_memory_cache():
+    """清理共享内存缓存"""
+    global _shared_vlm_cache_global, _shared_vlm_cache_rank
+    if _shared_vlm_cache_global is not None:
+        try:
+            _shared_vlm_cache_global.close()
+            if _shared_vlm_cache_rank == 0:
+                _shared_vlm_cache_global.unlink()
+                print("✓ 共享内存缓存已清理")
+        except Exception as e:
+            print(f"清理共享内存时出错: {e}")
+
+# ============================================================================
+# 四元数转轴角函数 - Quaternion to Axis-Angle Conversion
+# ============================================================================
+#
+# 参考: Isaac-GR00T/examples/Libero/eval/utils.py 第 68-92 行
+#
+# 用户的 state 格式 (9维):
+#   gripper1, gripper2, x, y, z, qx, qy, qz, qw
+#   需要转换: 四元数 (qx, qy, qz, qw) → 轴角 (ax, ay, az)
+#
+# 用户的 action 格式 (7维):
+#   delta_x, delta_y, delta_z, delta_roll, delta_pitch, delta_yaw, gripper
+#   已经是 7 维，不需要转换
+
+文件：Action_Heads/Flow_Matching_1/config.py
+"""
+Flow Matching Action Head Configuration
+"""
+
+# 支持多种导入方式，提高兼容性
+try:
+    # 方式1: 绝对导入（当作为模块直接导入时）
+    from models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+except ImportError:
+    try:
+        # 方式2: 相对导入（当作为包的一部分导入时）
+        from .models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+    except ImportError:
+        try:
+            # 方式3: 从 Action_Heads.Flow_Matching_1 包导入
+            from Action_Heads.Flow_Matching_1.models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+        except ImportError:
+            # 方式4: 添加路径后导入
+            import sys
+            from pathlib import Path
+            # 添加当前目录到路径
+            current_dir = Path(__file__).parent
+            if str(current_dir) not in sys.path:
+                sys.path.insert(0, str(current_dir))
+            from models.action_head.flow_matching_action_head import FlowmatchingActionHeadConfig
+
+def get_flowmatching_action_head_config(
+    action_backbone_dim: int = 1536,
+    vlm_output_dim: int = 2048,
+    vl_self_attention_head_dim: int = 64,
+    vl_self_attention_num_attention_heads: int = 32,
+    action_dim: int = 16,
+    action_horizon: int = 16,
+    max_state_dim: int = 64,
+    max_action_dim: int = 32,
+) -> FlowmatchingActionHeadConfig:
+    """
+    创建 FlowMatching ActionHead 的配置（原始完整版）
+    与原项目保持完全一致的配置参数
+
+    Args:
+        backbone_dim: backbone 特征维度
+        action_dim: 动作空间维度
+        action_horizon: 动作预测时间步长
+        max_state_dim: 最大状态维度
+
+    Returns:
+        FlowmatchingActionHeadConfig 实例
+    """
+    cfg = FlowmatchingActionHeadConfig(
+        add_pos_embed=True,
+        model_dtype='float32',
+        diffusion_model_cfg={
+            'attention_head_dim': 48,
+            'cross_attention_dim': vlm_output_dim,
+            'dropout': 0.2,
+            'final_dropout': True,
+            'interleave_self_attention': True,
+            'norm_type': 'ada_norm',
+            'num_attention_heads': 32,
+            'num_layers': 16,
+            'output_dim': 1024,
+            'positional_embeddings': None,
+        },
+        input_embedding_dim=action_backbone_dim,
+        backbone_embedding_dim=vlm_output_dim,
+        hidden_size=1024,
+        max_seq_len=1024,
+        action_dim=action_dim,
+        action_horizon=action_horizon,
+        noise_beta_alpha=1.5,
+        noise_beta_beta=1.0,
+        noise_s=0.999,
+        num_timestep_buckets=1000,
+        num_inference_timesteps=4,
+        max_num_embodiments=32,
+        tune_projector=True,
+        tune_diffusion_model=True,
+        load_pretrained_det_decode_layer_path=None,
+        detection_coeff=1.0,
+        freeze_decode_layer=False,
+        expand_batch=None,
+        use_vlln=True,
+        vl_self_attention_cfg={
+            'attention_head_dim': vl_self_attention_head_dim,
+            'dropout': 0.2,
+            'final_dropout': True,
+            'num_attention_heads': vl_self_attention_num_attention_heads,
+            'num_layers': 4,
+            'positional_embeddings': None,
+
+文件：Action_Heads/Flow_Matching_1/models/action_head/flow_matching_action_head.py
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from dataclasses import dataclass, field
+
+import torch
+import torch.nn.functional as F
+from torch import nn
+from torch.distributions import Beta
+from transformers import PretrainedConfig
+from transformers.feature_extraction_utils import BatchFeature
+
+# from gr00t.model.action_head.action_encoder import (
+#     SinusoidalPositionalEncoding,
+#     swish,
+# )
+
+from .action_encoder import (
+    SinusoidalPositionalEncoding,
+    swish,
+)
+
+from .cross_attention_dit import DiT, SelfAttentionTransformer
+
+class CategorySpecificLinear(nn.Module):
+    def __init__(self, num_categories, input_dim, hidden_dim):
+        super().__init__()
+        self.num_categories = num_categories
+        # For each category, we have separate weights and biases.
+        self.W = nn.Parameter(0.02 * torch.randn(num_categories, input_dim, hidden_dim))
+        self.b = nn.Parameter(torch.zeros(num_categories, hidden_dim))
+
+    def forward(self, x, cat_ids):
+        selected_W = self.W[cat_ids]
+        selected_b = self.b[cat_ids]
+        return torch.bmm(x, selected_W) + selected_b.unsqueeze(1)
+
+class CategorySpecificMLP(nn.Module):
+    def __init__(self, num_categories, input_dim, hidden_dim, output_dim):
+        super().__init__()
+        self.num_categories = num_categories
+        self.layer1 = CategorySpecificLinear(num_categories, input_dim, hidden_dim)
+        self.layer2 = CategorySpecificLinear(num_categories, hidden_dim, output_dim)
+
+    def forward(self, x, cat_ids):
+        hidden = F.relu(self.layer1(x, cat_ids))
+        return self.layer2(hidden, cat_ids)
+
+class MultiEmbodimentActionEncoder(nn.Module):
+    def __init__(self, action_dim, hidden_size, num_embodiments):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.num_embodiments = num_embodiments
+
+        # W1: R^{w x d}, W2: R^{w x 2w}, W3: R^{w x w}
+        self.W1 = CategorySpecificLinear(num_embodiments, action_dim, hidden_size)  # (d -> w)
+        self.W2 = CategorySpecificLinear(num_embodiments, 2 * hidden_size, hidden_size)  # (2w -> w)
+        self.W3 = CategorySpecificLinear(num_embodiments, hidden_size, hidden_size)  # (w -> w)
+        self.pos_encoding = SinusoidalPositionalEncoding(hidden_size)
+
+    def forward(self, actions, timesteps, cat_ids):
+        """
+        actions:   shape (B, T, action_dim)
+        timesteps: shape (B,)  -- a single scalar per batch item
+        cat_ids:   shape (B,)
+        returns:   shape (B, T, hidden_size)
+        """
+        B, T, _ = actions.shape
+
+        # 1) Expand each batch's single scalar time 'tau' across all T steps
+        #    so that shape => (B, T)
+        #    e.g. if timesteps is (B,), replicate across T
+        if timesteps.dim() == 1 and timesteps.shape[0] == B:
+            # shape (B,) => (B,T)
+            timesteps = timesteps.unsqueeze(1).expand(-1, T)
+        else:
+            raise ValueError(
+                "Expected `timesteps` to have shape (B,) so we can replicate across T."
+
+文件：Action_Heads/Flow_Matching_1/models/action_head/action_encoder.py
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import torch
+import torch.nn as nn
+
+def swish(x):
+    return x * torch.sigmoid(x)
+
+class SinusoidalPositionalEncoding(nn.Module):
+    """
+    Produces a sinusoidal encoding of shape (B, T, w)
+    given timesteps of shape (B, T).
+    """
+
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+    def forward(self, timesteps):
+        # timesteps: shape (B, T)
+        # We'll compute sin/cos frequencies across dim T
+        timesteps = timesteps.float()  # ensure float
+
+        B, T = timesteps.shape
+        device = timesteps.device
+
+        half_dim = self.embedding_dim // 2
+        # typical log space frequencies for sinusoidal encoding
+        exponent = -torch.arange(half_dim, dtype=torch.float, device=device) * (
+            torch.log(torch.tensor(10000.0)) / half_dim
+        )
+        # Expand timesteps to (B, T, 1) then multiply
+        freqs = timesteps.unsqueeze(-1) * exponent.exp()  # (B, T, half_dim)
+
+        sin = torch.sin(freqs)
+        cos = torch.cos(freqs)
+        enc = torch.cat([sin, cos], dim=-1)  # (B, T, w)
+
+        return enc
+
+class ActionEncoder(nn.Module):
+    def __init__(self, action_dim, hidden_size):
+        super().__init__()
+        self.hidden_size = hidden_size
+
+        # W1: R^{w x d}, W2: R^{w x 2w}, W3: R^{w x w}
+        self.W1 = nn.Linear(action_dim, hidden_size)  # (d -> w)
+        self.W2 = nn.Linear(2 * hidden_size, hidden_size)  # (2w -> w)
+        self.W3 = nn.Linear(hidden_size, hidden_size)  # (w -> w)
+
+        self.pos_encoding = SinusoidalPositionalEncoding(hidden_size)
+
+    def forward(self, actions, timesteps):
+        """
+        actions:   shape (B, T, action_dim)
+        timesteps: shape (B,)  -- a single scalar per batch item
+        returns:   shape (B, T, hidden_size)
+        """
+        B, T, _ = actions.shape
+
+        # 1) Expand each batch's single scalar time 'tau' across all T steps
+        #    so that shape => (B, T)
+        #    e.g. if timesteps is (B,), replicate across T
+        if timesteps.dim() == 1 and timesteps.shape[0] == B:
+            # shape (B,) => (B,T)
+            timesteps = timesteps.unsqueeze(1).expand(-1, T)
+        else:
+            raise ValueError(
+                "Expected `timesteps` to have shape (B,) so we can replicate across T."
+            )
+
+        # 2) Standard action MLP step for shape => (B, T, w)
+        a_emb = self.W1(actions)
+
+        # 3) Get the sinusoidal encoding (B, T, w)
+        tau_emb = self.pos_encoding(timesteps).to(dtype=a_emb.dtype)
+
+
+文件：Action_Heads/Flow_Matching_1/models/action_head/cross_attention_dit.py
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from typing import Optional
+
+import torch
+import torch.nn.functional as F
+from diffusers import ConfigMixin, ModelMixin
+from diffusers.configuration_utils import register_to_config
+from diffusers.models.attention import Attention, FeedForward
+from diffusers.models.embeddings import (
+    SinusoidalPositionalEmbedding,
+    TimestepEmbedding,
+    Timesteps,
+)
+from torch import nn
+
+class TimestepEncoder(nn.Module):
+    def __init__(self, embedding_dim, compute_dtype=torch.float32):
+        super().__init__()
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=1)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+    def forward(self, timesteps):
+        dtype = next(self.parameters()).dtype
+        timesteps_proj = self.time_proj(timesteps).to(dtype)
+        timesteps_emb = self.timestep_embedder(timesteps_proj)  # (N, D)
+        return timesteps_emb
+
+class AdaLayerNorm(nn.Module):
+    def __init__(
+        self,
+        embedding_dim: int,
+        norm_elementwise_affine: bool = False,
+        norm_eps: float = 1e-5,
+        chunk_dim: int = 0,
+    ):
+        super().__init__()
+        self.chunk_dim = chunk_dim
+        output_dim = embedding_dim * 2
+        self.silu = nn.SiLU()
+        self.linear = nn.Linear(embedding_dim, output_dim)
+        self.norm = nn.LayerNorm(output_dim // 2, norm_eps, norm_elementwise_affine)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        temb: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        temb = self.linear(self.silu(temb))
+        scale, shift = temb.chunk(2, dim=1)
+        x = self.norm(x) * (1 + scale[:, None]) + shift[:, None]
+        return x
+
+class BasicTransformerBlock(nn.Module):
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        dropout=0.0,
+        cross_attention_dim: Optional[int] = None,
+        activation_fn: str = "geglu",
+        attention_bias: bool = False,
+        upcast_attention: bool = False,
+        norm_elementwise_affine: bool = True,
+        norm_type: str = "layer_norm",  # 'layer_norm', 'ada_norm', 'ada_norm_zero', 'ada_norm_single', 'ada_norm_continuous', 'layer_norm_i2vgen'
+        norm_eps: float = 1e-5,
+        final_dropout: bool = False,
+        attention_type: str = "default",
+        positional_embeddings: Optional[str] = None,
+        num_positional_embeddings: Optional[int] = None,
+        ff_inner_dim: Optional[int] = None,
+        ff_bias: bool = True,
+        attention_out_bias: bool = True,
+    ):
+        super().__init__()
+        self.dim = dim
+
+文件：Action_Heads/Flow_Matching_1/merge_hidden_states.py
+"""
+Hidden States 合并工具
+用于在序列长度维度上拼接多个 hidden states
+Merge multiple hidden states along sequence length dimension
+"""
+import torch
+import numpy as np
+from typing import Union, List
+
+def merge_hidden_states_in_seq_dim(
+    hidden_states_list: List[Union[torch.Tensor, np.ndarray]],
+    dim: int = 1
+) -> Union[torch.Tensor, np.ndarray]:
+    """
+    在序列长度维度上合并多个 hidden states
+    Merge multiple hidden states along the sequence length dimension
+
+    Args:
+        hidden_states_list: hidden states 列表，要求所有元素形状相同
+        dim: 拼接维度，默认为 0 或 1（取决于输入维度）
+
+    Returns:
+        合并后的 hidden states
+
+    Example:
+        >>> # 2D tensors (seq_len, hidden_dim) - 在序列维度拼接
+        >>> h1 = torch.randn(512, 2048)  # layer 0
+        >>> h2 = torch.randn(512, 2048)  # layer 1
+        >>> h3 = torch.randn(512, 2048)  # layer 2
+        >>> merged = merge_hidden_states_in_seq_dim([h1, h2, h3], dim=0)
+        >>> print(merged.shape)  # torch.Size([1536, 2048]) - 512*3=1536
+        >>>
+        >>> # ! 我们场景下用的是 -> 3D tensors (batch, seq_len, hidden_dim) - 在序列维度拼接
+        >>> h1 = torch.randn(4, 512, 2048)
+        >>> h2 = torch.randn(4, 512, 2048)
+        >>> h3 = torch.randn(4, 512, 2048)
+        >>> merged = merge_hidden_states_in_seq_dim([h1, h2, h3], dim=1)
+        >>> print(merged.shape)  # torch.Size([4, 1536, 2048]) - 512*3=1536
+    """
+    if not hidden_states_list:
+        raise ValueError("hidden_states_list 不能为空")
+
+    # 检查是否所有元素都是相同类型
+    is_torch = isinstance(hidden_states_list[0], torch.Tensor)
+    is_numpy = isinstance(hidden_states_list[0], np.ndarray)
+
+    if not (is_torch or is_numpy):
+        raise TypeError(f"不支持的类型: {type(hidden_states_list[0])}")
+
+    # 检查所有 hidden states 形状是否相同
+    first_shape = hidden_states_list[0].shape
+    for i, hs in enumerate(hidden_states_list[1:], 1):
+        if hs.shape != first_shape:
+            raise ValueError(
+                f"第 {i} 个 hidden state 形状 {hs.shape} "
+                f"与第 0 个 {first_shape} 不匹配"
+            )
+
+    # 在序列维度拼接
+    if is_torch:
+        return torch.cat(hidden_states_list, dim=dim)
+    else:
+        return np.concatenate(hidden_states_list, axis=dim)
+
+文件：Action_Heads/Flow_Matching_1/infer_once.py
+"""
+推理脚本 - Flow Matching Action Head
+支持多次生成 backbone_features 并拼接的推理
+使用方法:
+  python infer.py --ckpt_dir ./fm1_ckpts
+  python infer.py --ckpt_dir ./fm1_ckpts --npz /path/to/sample.npz
+"""
+"""
+Flow Matching Action Head 单次推理脚本
+Single Inference Script for Flow Matching Action Head
+
+使用方法 Usage:
+  python infer_once.py --ckpt_dir ./checkpoints/epoch_0
+  python infer_once.py --ckpt_dir ./checkpoints/best --npz /path/to/sample.npz
+
+============================================================================
+NPZ 文件格式要求 Required NPZ File Format:
+============================================================================
+
+如果要使用真实数据进行推理，需要提供包含以下字段的 .npz 文件：
+If using real data for inference, provide a .npz file with the following fields:
+
+必需字段 Required fields:
+  - backbone_features: np.ndarray, shape (seq_len, hidden_dim)
+    例如 Example: (1536, 2048) 表示 1536 个 token，每个 2048 维
+    说明: VLM 输出的特征向量，通常是多层拼接后的结果
+    Note: Feature vectors from VLM, usually concatenated from multiple layers
+
+  - backbone_attention_mask: np.ndarray, shape (seq_len,), dtype=int64
+    例如 Example: (1536,) 全1表示所有token都有效
+    说明: 注意力掩码，1表示有效token，0表示padding
+    Note: Attention mask, 1=valid token, 0=padding
+
+  - state: np.ndarray, shape (1, state_dim)
+    例如 Example: (1, 64) 表示 1 个时间步，64 维状态
+    说明: 机器人当前状态（关节位置、速度等），需要padding到max_state_dim
+    Note: Robot current state (joint positions, velocities, etc.), padded to max_state_dim
+
+创建 NPZ 示例 Example of creating NPZ:
+  ```python
+  import numpy as np
+
+  # 假设从 VLM 获取了 3 层隐藏状态，每层 512 tokens，每个 token 2048 维
+  # Assume we got 3 layers of hidden states from VLM, 512 tokens per layer, 2048 dim each
+  vlm_hidden = ...  # shape: (3, 512, 2048)
+
+  # 拼接所有层: (3, 512, 2048) -> (1536, 2048)
+  # Concatenate all layers
+  backbone_features = vlm_hidden.reshape(-1, 2048)  # (1536, 2048)
+
+  # 创建注意力掩码（全1）
+  # Create attention mask (all ones)
+  backbone_attention_mask = np.ones(1536, dtype=np.int64)
+
+  # 机器人状态（假设16维，需要padding到64维）
+  # Robot state (assume 16-dim, need padding to 64-dim)
+  state = np.zeros((1, 64), dtype=np.float32)
+  state[0, :16] = [0.1, 0.2, ...]  # 实际状态值 actual state values
+
+  # 保存为 NPZ
+  # Save as NPZ
+  np.savez('sample.npz',
+           backbone_features=backbone_features,
+           backbone_attention_mask=backbone_attention_mask,
+           state=state)
+  ```
+
+注意事项 Notes:
+  - backbone_features 的 seq_len 应该是 num_layers * tokens_per_layer
+  - state 需要 padding 到 max_state_dim（通常是64）
+  - 所有数组的 dtype 应该是 float32 或 int64
+  - NPZ file should match the dimensions expected by the model
+============================================================================
+"""
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+from transformers.feature_extraction_utils import BatchFeature
+
+from models.action_head.flow_matching_action_head import FlowmatchingActionHead, FlowmatchingActionHeadConfig
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ckpt_dir", type=str, required=True, help="检查点目录路径")
+    parser.add_argument("--device", type=str, default="cuda", help="推理设备")
+    parser.add_argument("--npz", type=str, default="", help="NPZ数据文件路径（可选，不提供则使用随机输入）")
+
+文件：Action_Heads/Flow_Matching_1/train_multigpu.py
+"""
+训练脚本 - 支持从预训练权重初始化 (多GPU分布式训练版本)
+使用 LeRobot Dataset Loader 加载真实数据
+
+多GPU训练使用方法 (Multi-GPU Training):
+  # 使用 torchrun 启动分布式训练 (推荐)
+  torchrun --nproc_per_node=4 train_with_pretrained_action_head_weight_eagle25_multigpu.py \
+    --data_path /path/to/dataset \
+    --pretrained_weights ./pretrained_action_head.pt \
+    --steps 1000
+
+  # 指定特定GPU运行
+  CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node=4 train_with_pretrained_action_head_weight_eagle25_multigpu.py \
+    --data_path /path/to/dataset
+
+单GPU训练使用方法 (Single-GPU Training):
+  python train_with_pretrained_action_head_weight_eagle25_multigpu.py \
+    --data_path /path/to/dataset \
+    --device cuda:0
+
+参数说明:
+  --gradient_accumulation_steps: 梯度累积步数 (默认: 1)
+  --local_rank: 本地进程排名 (由 torchrun 自动设置，无需手动指定)
+"""
+import argparse
+import datetime
+import json
+import os
+import sys
+import socket
+from pathlib import Path
+from typing import List, Optional
+import time
+from dataclasses import dataclass, field
+from functools import partial
+
+def find_free_port():
+    """找到一个可用的端口"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
+
+# 如果 MASTER_PORT 未设置，自动分配一个可用端口
+if 'MASTER_PORT' not in os.environ:
+    os.environ['MASTER_PORT'] = str(find_free_port())
+    print(f"[INFO] 自动分配 MASTER_PORT: {os.environ['MASTER_PORT']}")
+
+import numpy as np
+import torch
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR
+from torch.cuda.amp import autocast, GradScaler  # 混合精度训练
+from transformers.feature_extraction_utils import BatchFeature
+from tqdm import tqdm
+import wandb
+
+from models.action_head.flow_matching_action_head import FlowmatchingActionHead
+from config import get_flowmatching_action_head_config
+from merge_hidden_states import merge_hidden_states_in_seq_dim
+
+# 添加 utils 路径以导入 lerobot_dataset_loader
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'utils'))
+from lerobot_dataset_loader import (
+    create_lerobot_dataloader,
+    preload_vlm_cache_distributed,
+    get_total_vlm_states,
+)
+import atexit
+import signal
+DEFAULT_EMBODIMENT_ID = 31
+
+# 全局变量用于清理共享内存
+_shared_vlm_cache_global = None
+_shared_vlm_cache_rank = None
+
+def cleanup_shared_memory_cache():
+    """清理共享内存缓存"""
+    global _shared_vlm_cache_global, _shared_vlm_cache_rank
+    if _shared_vlm_cache_global is not None:
+        try:
+            _shared_vlm_cache_global.close()
+            if _shared_vlm_cache_rank == 0:
+                _shared_vlm_cache_global.unlink()
+                print("✓ 共享内存缓存已清理")
+        except Exception as e:
+            print(f"清理共享内存时出错: {e}")
+
+文件：Action_Heads/OFT1_0/__init__.py
+"""
+OFT1_0 Action Head Module
+
+Optimal Flow Transport (OFT) action head for VLA models.
+"""
+
+from .vlm2oft_pipeline import (
+    VLM2OFTPipeline,
+    create_vlm2oft_pipeline,
+)
+
+__all__ = [
+    "VLM2OFTPipeline",
+    "create_vlm2oft_pipeline",
+]
+
+
+文件：Action_Heads/OFT1_0/constants.py
+# ============================================================================
+# VLM 配置 (VLM Configuration)
+# ============================================================================
+# 注意：保留此 constants 文件是为了维持与 OpenVLA 原生结构的兼容性。
+# 虽然命名为常量，但由于进行了常量设置，这种做法并不完全合理。
+# 然而，为了既保留 OpenVLA 原生结构又符合我们的代码需求，这些值可以被视为变量。
+#
+# NOTE: This constants file is preserved to maintain compatibility with the
+# original OpenVLA structure. While named as constants, this approach is not
+# entirely reasonable due to constant configuration requirements. However, to
+# preserve OpenVLA's native structure while meeting our codebase needs, these
+# values can be treated as variables.
+#
+# 重要注意事项 (IMPORTANT CONSIDERATIONS):
+# 1. 【可动态修改】LLM_OUTPUT_DIM_MLP_INPUT_DIM 和 NUM_VLM_HIDDEN_LAYERS 这两个值
+#    可以在 train.py 或其他模块调用时被覆盖/修改
+#    [Dynamically modifiable] LLM_OUTPUT_DIM_MLP_INPUT_DIM and NUM_VLM_HIDDEN_LAYERS
+#    can be overridden/modified in train.py or when called from other modules
+#
+# 2. 【需手动修改】除上述两个值外，其余所有配置项只能在此 constants.py 文件中手动修改才能生效
+#    虽然有点麻烦，但这是 OpenVLA 原生结构的限制
+#    [Manual modification required] All other configuration items can only take effect
+#    by manually modifying this constants.py file. While somewhat inconvenient, this
+#    is a limitation of OpenVLA's native structure
+#
+# 3. 如果遇到写入失败，请检查文件权限问题
+#    If encountering write failures, check file permissions
+# ============================================================================
+LLM_OUTPUT_DIM_MLP_INPUT_DIM = 2048  # VLM 输出维度默认值 (可在 train.py 中覆盖)
+NUM_VLM_HIDDEN_LAYERS = 1  # VLM 隐藏层数量默认值 (可在 train.py 中覆盖)
+
+# Action-related
+ACTION_DIM = 8  # (e.g., 16-DOF robot arm)
+NUM_ACTIONS_CHUNK = 1000 # 30 -> 1000 20260402
+
+# Proprio
+# 注意: 此值需要与预处理后的 state 维度一致
+# LIBERO 数据集: 8 维 (四元数转轴角后)
+# mydataset256: 14 维 (hand_binary 预处理后)
+PROPRIO_DIM = 8
+USE_PROPRIO_PROJECTOR = False
+USE_NOISY_ACTION_PROJECTOR = False # if True, use NoisyActionProjector for proprioception
+
+# Diffusion or L1
+USE_DIFFUSION = False # if True, use DiffusionActionHead; else use L1RegressionActionHead
+NUM_DIFFUSION_STEPS = 50
+
+文件：Action_Heads/OFT1_0/models/__init__.py
+"""Models module for OFT1_0."""
+
+from .action_head import *
+
+__all__ = ["action_head"]
+
+文件：Action_Heads/OFT1_0/models/action_head/__init__.py
+"""Action Heads OFT1_0 module for GR00T Action_Heads."""
+
+# Import action heads
+from .action_heads_oft_orig import (
+    DiffusionActionHead,
+    L1RegressionActionHead,
+    MLPResNet,
+    MLPResNetBlock,
+    NoisePredictionModel,
+    SinusoidalPositionalEncoding,
+)
+
+# Import projectors
+from .projectors_oft_orig import (
+    NoisyActionProjector,
+    ProprioProjector,
+    ProprioProjector_Changed,
+)
+
+# Import constants from OFT1_0 root (2 levels up)
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+try:
+    from constants import (
+        ACTION_DIM,
+        LLM_OUTPUT_DIM_MLP_INPUT_DIM,
+        NUM_ACTIONS_CHUNK,
+        NUM_DIFFUSION_STEPS,
+        NUM_VLM_HIDDEN_LAYERS,
+        PROPRIO_DIM,
+        USE_DIFFUSION,
+        USE_NOISY_ACTION_PROJECTOR,
+        USE_PROPRIO_PROJECTOR,
+    )
+except ImportError:
+    # Fallback for relative import
+    try:
+        from ...constants import (
+            ACTION_DIM,
+            LLM_OUTPUT_DIM_MLP_INPUT_DIM,
+            NUM_ACTIONS_CHUNK,
+            NUM_DIFFUSION_STEPS,
+            NUM_VLM_HIDDEN_LAYERS,
+            PROPRIO_DIM,
+            USE_DIFFUSION,
+            USE_NOISY_ACTION_PROJECTOR,
+            USE_PROPRIO_PROJECTOR,
+        )
+    except ImportError:
+        raise ImportError("Cannot import constants. Make sure constants.py is in OFT1_0 directory")
+
+__all__ = [
+    # Action heads
+    "DiffusionActionHead",
+    "L1RegressionActionHead",
+    "MLPResNet",
+    "MLPResNetBlock",
+    "NoisePredictionModel",
+    "SinusoidalPositionalEncoding",
+    # Constants
+    "ACTION_DIM",
+    "LLM_OUTPUT_DIM_MLP_INPUT_DIM",
+    "NUM_ACTIONS_CHUNK",
+    "NUM_DIFFUSION_STEPS",
+    "NUM_VLM_HIDDEN_LAYERS",
+    "PROPRIO_DIM",
+    "USE_DIFFUSION",
+    "USE_NOISY_ACTION_PROJECTOR",
+    "USE_PROPRIO_PROJECTOR",
+    # Projectors
+    "NoisyActionProjector",
+    "ProprioProjector",
+    "ProprioProjector_Changed",
+]
+
+文件：Action_Heads/OFT1_0/models/action_head/projectors_oft_orig.py
+"""Implementation of additional projectors for additional inputs to the VLA models."""
+import torch
+import torch.nn as nn
+
+class ProprioProjector(nn.Module): # ! Used
+    """
+    Projects proprio state inputs into the LLM's embedding space.
+    """
+    def __init__(self, llm_dim: int, proprio_dim: int) -> None:
+        super().__init__()
+        self.llm_dim = llm_dim
+        self.proprio_dim = proprio_dim
+
+        self.fc1 = nn.Linear(self.proprio_dim, self.llm_dim, bias=True)
+        self.fc2 = nn.Linear(self.llm_dim, self.llm_dim, bias=True)
+        self.act_fn1 = nn.GELU()
+
+    def forward(self, proprio: torch.Tensor = None) -> torch.Tensor:
+        # proprio: (bsz, proprio_dim)
+        projected_features = self.fc1(proprio)
+        projected_features = self.act_fn1(projected_features)
+        projected_features = self.fc2(projected_features)
+        return projected_features
+
+class ProprioProjector_Changed(nn.Module): # ! Added and Changed
+    """
+    Projects proprio state inputs into the LLM's embedding space with specific padding and normalization.
+    e.g. Converts (bsz, 16) -> (bsz, llm_dim) by padding zeros at front and placing original values at end,
+         then normalizes and expands to (bsz, 1, llm_dim).
+    """
+    def __init__(self, llm_dim: int, proprio_dim: int = 16) -> None:
+        super().__init__()
+        self.llm_dim = llm_dim
+        self.proprio_dim = proprio_dim
+        self.layer_norm = nn.LayerNorm(self.llm_dim)
+
+    def forward(self, proprio: torch.Tensor = None) -> torch.Tensor:
+        # proprio: (bsz, proprio_dim)
+        bsz = proprio.shape[0]
+        projected_features = torch.zeros(bsz, self.llm_dim, device=proprio.device, dtype=proprio.dtype)
+        projected_features[:, -self.proprio_dim:] = proprio
+        # projected_features = self.layer_norm(projected_features) # ! 因为进入动作head前会有LayerNorm，所以这里不需要再norm一次
+
+        # Expand dimension to (bsz, 1, llm_dim)
+        projected_features = projected_features.unsqueeze(1)
+
+        return projected_features
+
+class NoisyActionProjector(nn.Module):
+    """
+    [Diffusion] Projects noisy action inputs into the LLM's embedding space.
+
+    Note that since each action is tokenized into 7 tokens in OpenVLA (rather
+    than having 1 token per action), each noisy action token will have dimension 1
+    instead of 7.
+    """
+    def __init__(self, llm_dim: int) -> None:
+        super().__init__()
+        self.llm_dim = llm_dim
+        self.action_token_dim = 1
+
+        self.fc1 = nn.Linear(self.action_token_dim, self.llm_dim, bias=True)
+        self.fc2 = nn.Linear(self.llm_dim, self.llm_dim, bias=True)
+        self.act_fn1 = nn.GELU()
+
+    def forward(self, noisy_actions: torch.Tensor = None) -> torch.Tensor:
+        # noisy_actions: (bsz, num_action_tokens=chunk_len*action_dim, 1)
+        projected_features = self.fc1(noisy_actions)
+        projected_features = self.act_fn1(projected_features)
+        projected_features = self.fc2(projected_features)
+        return projected_features
+
+文件：Action_Heads/OFT1_0/models/action_head/action_heads_oft_orig.py
+"""Implementations of various action heads, which serve as alternatives to VLM sequential token prediction."""
+
+import math
+
+import numpy as np
+import torch
+import torch.nn as nn
+from diffusers.schedulers.scheduling_ddim import DDIMScheduler
+# from prismatic.vla.constants import ACTION_DIM, ACTION_TOKEN_BEGIN_IDX, IGNORE_INDEX, NUM_ACTIONS_CHUNK, PROPRIO_DIM, STOP_INDEX
+
+# Handle both relative and absolute imports
+try:
+    from ...constants import ACTION_DIM, NUM_ACTIONS_CHUNK, LLM_OUTPUT_DIM_MLP_INPUT_DIM
+except ImportError:
+    from constants import ACTION_DIM, NUM_ACTIONS_CHUNK, LLM_OUTPUT_DIM_MLP_INPUT_DIM
+
+class MLPResNetBlock(nn.Module): # ! Used
+    """One MLP ResNet block with a residual connection."""
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+        self.ffn = nn.Sequential(  # feedforward network, similar to the ones in Transformers
+            nn.LayerNorm(dim),
+            nn.Linear(dim, dim),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+        # x: (batch_size, hidden_dim)
+        # We follow the module ordering of "Pre-Layer Normalization" feedforward networks in Transformers as
+        # described here: https://arxiv.org/pdf/2002.04745.pdf
+        identity = x
+        x = self.ffn(x)
+        x = x + identity
+        return x
+
+class MLPResNet(nn.Module): # ! Used
+    """MLP with residual connection blocks."""
+    def __init__(self, num_blocks, input_dim, hidden_dim, output_dim):
+        super().__init__()
+        self.layer_norm1 = nn.LayerNorm(input_dim)
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.relu = nn.ReLU()
+        self.mlp_resnet_blocks = nn.ModuleList()
+        for _ in range(num_blocks):
+            self.mlp_resnet_blocks.append(MLPResNetBlock(dim=hidden_dim))
+        self.layer_norm2 = nn.LayerNorm(hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        # x: (batch_size, input_dim)
+        x = self.layer_norm1(x)  # shape: (batch_size, input_dim)
+        x = self.fc1(x)  # shape: (batch_size, hidden_dim)
+        x = self.relu(x)  # shape: (batch_size, hidden_dim)
+        for block in self.mlp_resnet_blocks:
+            x = block(x)  # shape: (batch_size, hidden_dim)
+        x = self.layer_norm2(x)  # shape: (batch_size, hidden_dim)
+        x = self.fc2(x)  # shape: (batch_size, output_dim)
+        return x
+
+class L1RegressionActionHead(nn.Module): # ! Used and Changed
+    """Simple MLP-based action head that generates continuous actions via L1 regression."""
+    # def __init__(
+    #     self,
+    #     input_dim=4096,
+    #     hidden_dim=4096,
+    #     action_dim=7,
+    # ):
+    # ! Changed here
+    def __init__(
+        self,
+        hidden_dim=4096,
+        action_dim=NUM_ACTIONS_CHUNK*ACTION_DIM,
+        input_dim=LLM_OUTPUT_DIM_MLP_INPUT_DIM,  # Allow override from train code
+    ):
+        super().__init__()
+        # Save input_dim for potential future use
+        self.input_dim = input_dim
+        # self.action_dim = action_dim
+        # self.model = MLPResNet(
+        #     num_blocks=2, input_dim=input_dim*ACTION_DIM, hidden_dim=hidden_dim, output_dim=action_dim
+        # )
+        # ! Changed here - use input_dim parameter with default from constants
+        self.model = MLPResNet(
+            num_blocks=2, input_dim=input_dim, hidden_dim=hidden_dim, output_dim=action_dim # num_blocks 2->4 20260209
+        )
+
+    def predict_action(self, actions_hidden_states):
+        # actions_hidden_states: last hidden states of Transformer corresponding to action tokens in sequence
+        # - shape: (batch_size, chunk_len * action_dim, hidden_dim)
+
+文件：Action_Heads/OFT1_0/vlm2oft_pipeline.py
+"""
+VLM to OFT Pipeline Implementation
+
+This module implements a pipeline that processes VLM (Vision Language Model) hidden states
+and proprioception data through transformer blocks to generate action predictions.
+
+Pipeline Flow:
+1. Concatenate VLM hidden states from multiple layers
+2. Process proprioception through ProprioProjector_Changed
+3. Concatenate VLM and proprioception features
+4. Pass through transformer blocks
+5. Extract final features and predict actions using L1RegressionActionHead
+"""
+
+import torch
+import torch.nn as nn
+import math
+import os
+import sys
+from typing import List, Optional
+
+# Handle both relative and absolute imports
+try:
+    # Try relative imports first (when used as a module)
+    from .constants import (
+        NUM_VLM_HIDDEN_LAYERS,
+        LLM_OUTPUT_DIM_MLP_INPUT_DIM,
+        PROPRIO_DIM,
+        ACTION_DIM,
+        NUM_ACTIONS_CHUNK
+    )
+    from .models.action_head.projectors_oft_orig import ProprioProjector_Changed
+    from .models.action_head.action_heads_oft_orig import L1RegressionActionHead
+except ImportError:
+    # Fall back to absolute imports (when run as main script or imported from elsewhere)
+    # Add current directory to path if needed
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+
+    from constants import (
+        NUM_VLM_HIDDEN_LAYERS,
+        LLM_OUTPUT_DIM_MLP_INPUT_DIM,
+        PROPRIO_DIM,
+        ACTION_DIM,
+        NUM_ACTIONS_CHUNK
+    )
+    from models.action_head.projectors_oft_orig import ProprioProjector_Changed
+    from models.action_head.action_heads_oft_orig import L1RegressionActionHead
+
+class TransformerBlock(nn.Module):
+    """
+    A single transformer block with multi-head self-attention and feed-forward network.
+    """
+    def __init__(self, hidden_dim: int, num_heads: int = 8, dropout: float = 0.1):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.num_heads = num_heads
+
+        # Multi-head self-attention
+        self.attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True
+        )
+
+        # Layer normalization
+        self.norm1 = nn.LayerNorm(hidden_dim)
+        self.norm2 = nn.LayerNorm(hidden_dim)
+
+        # Feed-forward network
+        self.ffn = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 4),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim * 4, hidden_dim),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x: torch.Tensor, key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """
+        Forward pass through transformer block.
+
+        Args:
+            x: Input tensor of shape (batch_size, seq_len, hidden_dim)
+            key_padding_mask: Optional padding mask of shape (batch_size, seq_len)
+                              True = position to be masked (padding), False = valid position
+                              This is used to ignore padding tokens in attention
+
+
+文件：Action_Heads/OFT1_0/infer_once.py
+"""
+OFT Action Head 单次推理脚本
+Single Inference Script for OFT Action Head
+
+使用方法 Usage:
+  python infer_once.py --ckpt_dir ./experiments/pickupanapple_v1_hidden_dim_3_512_2048/checkpoints/epoch_1
+  python infer_once.py --ckpt_dir ./experiments/pickupanapple_v1_hidden_dim_3_512_2048/checkpoints/epoch_1 --device cuda:7
+
+============================================================================
+NPZ 文件格式要求 Required NPZ File Format:
+============================================================================
+
+如果要使用真实数据进行推理，需要提供包含以下字段的 .npz 文件：
+If using real data for inference, provide a .npz file with the following fields:
+
+必需字段 Required fields:
+  - backbone_features: np.ndarray, shape (seq_len, hidden_dim)
+    例如 Example: (1536, 2048) 表示 1536 个 token，每个 2048 维
+    说明: VLM 输出的特征向量，通常是多层拼接后的结果
+    Note: Feature vectors from VLM, usually concatenated from multiple layers
+
+  - backbone_attention_mask: np.ndarray, shape (seq_len,), dtype=int64
+    例如 Example: (1536,) 全1表示所有token都有效
+    说明: 注意力掩码，1表示有效token，0表示padding
+    Note: Attention mask, 1=valid token, 0=padding
+
+  - state: np.ndarray, shape (1, state_dim)
+    例如 Example: (1, 64) 表示 1 个时间步，64 维状态
+    说明: 机器人当前状态（关节位置、速度等），需要padding到max_state_dim
+    Note: Robot current state (joint positions, velocities, etc.), padded to max_state_dim
+
+创建 NPZ 示例 Example of creating NPZ:
+  ```python
+  import numpy as np
+
+  # 假设从 VLM 获取了 3 层隐藏状态，每层 512 tokens，每个 token 2048 维
+  # Assume we got 3 layers of hidden states from VLM, 512 tokens per layer, 2048 dim each
+  vlm_hidden = ...  # shape: (3, 512, 2048)
+
+  # 拼接所有层: (3, 512, 2048) -> (1536, 2048)
+  # Concatenate all layers
+  backbone_features = vlm_hidden.reshape(-1, 2048)  # (1536, 2048)
+
+  # 创建注意力掩码（全1）
+  # Create attention mask (all ones)
+  backbone_attention_mask = np.ones(1536, dtype=np.int64)
+
+  # 机器人状态（假设16维，需要padding到64维）
+  # Robot state (assume 16-dim, need padding to 64-dim)
+  state = np.zeros((1, 64), dtype=np.float32)
+  state[0, :16] = [0.1, 0.2, ...]  # 实际状态值 actual state values
+
+  # 保存为 NPZ
+  # Save as NPZ
+  np.savez('sample.npz',
+           backbone_features=backbone_features,
+           backbone_attention_mask=backbone_attention_mask,
+           state=state)
+  ```
+
+注意事项 Notes:
+  - backbone_features 的 seq_len 应该是 num_layers * tokens_per_layer
+  - state 需要 padding 到 max_state_dim（通常是64）
+  - 所有数组的 dtype 应该是 float32 或 int64
+  - NPZ file should match the dimensions expected by the model
+============================================================================
+"""
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from vlm2oft_pipeline import create_vlm2oft_pipeline
+from constants import (
+    NUM_VLM_HIDDEN_LAYERS,
+    LLM_OUTPUT_DIM_MLP_INPUT_DIM,
+    PROPRIO_DIM,
+    ACTION_DIM,
+    NUM_ACTIONS_CHUNK
+)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ckpt_dir", type=str, required=True, help="检查点目录路径")
+    parser.add_argument("--device", type=str, default="cuda", help="推理设备")
+    parser.add_argument("--num_transformer_blocks", type=int, default=2, help="Transformer blocks 数量")
+    parser.add_argument("--num_attention_heads", type=int, default=8, help="注意力头数量")
+    parser.add_argument("--vlm_output_dim", type=int, default=None, help="VLM输出维度（默认从constants读取）")
+
+文件：Action_Heads/OFT1_0/train_multigpu.py
+"""
+OFT1_0 训练脚本 - 支持多GPU分布式训练 (Qwen2B 版本)
+使用 LeRobot Dataset Loader 加载真实数据
+
+多GPU训练使用方法 (Multi-GPU Training):
+  # 使用 torchrun 启动分布式训练 (推荐)
+  torchrun --nproc_per_node=4 train_for_libero_qwen2b_multigpu.py \
+    --data_path /path/to/dataset \
+    --steps 10000
+
+  # 指定特定GPU运行
+  CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node=4 train_for_libero_qwen2b_multigpu.py \
+    --data_path /path/to/dataset
+
+单GPU训练使用方法 (Single-GPU Training):
+  python train_for_libero_qwen2b_multigpu.py \
+    --data_path /path/to/dataset \
+    --device cuda:0
+
+参数说明:
+  --gradient_accumulation_steps: 梯度累积步数 (默认: 1)
+  --local_rank: 本地进程排名 (由 torchrun 自动设置，无需手动指定)
+"""
+import argparse
+import json
+import os
+import sys
+import re
+import atexit
+import random
+import signal
+from pathlib import Path
+from typing import List, Optional, Dict
+import time
+from datetime import timedelta
+from dataclasses import dataclass
+from functools import partial
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR
+from torch.amp import autocast, GradScaler
+from transformers.feature_extraction_utils import BatchFeature
+from tqdm import tqdm
+import wandb
+
+# 添加当前目录和项目根目录到路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))  # 项目根目录
+
+from vlm2oft_pipeline import VLM2OFTPipeline, create_vlm2oft_pipeline
+from constants import (
+    ACTION_DIM, NUM_ACTIONS_CHUNK, LLM_OUTPUT_DIM_MLP_INPUT_DIM,
+    PROPRIO_DIM, NUM_VLM_HIDDEN_LAYERS
+)
+from utils.polyfit_chunk import polyfit_chunk
+from utils.lerobot_dataset_loader import (
+    create_lerobot_dataloader,
+    LeRobotDataset,
+    collate_fn as lerobot_default_collate_fn,
+    SharedVLMCache,
+    preload_vlm_cache_distributed,
+    get_total_vlm_states,
+)
+
+# ============================================================================
+# 四元数转轴角函数 - Quaternion to Axis-Angle Conversion
+# ============================================================================
+
+def quat2axisangle_torch(quat: torch.Tensor) -> torch.Tensor:
+    """
+    四元数转轴角 (PyTorch 批量版本)
+
+    Args:
+        quat: (batch, 4) 或 (batch, seq, 4)，四元数 (qx, qy, qz, qw)
+
+    Returns:
+        axis_angle: (batch, 3) 或 (batch, seq, 3)，轴角 (ax, ay, az)
+    """
+    original_shape = quat.shape
+
+    if quat.dim() == 3:
+        batch_size, seq_len, _ = quat.shape
+        quat = quat.reshape(-1, 4)
+    else:
+
+文件：Action_Heads/ParaCAT/model/action_head/__init__.py
+"""
+ParaCAT Action Head Module
+
+A cross-attention and self-attention based action head that:
+1. Uses learnable query tokens to attend to Pons adapter output
+2. Processes through self-attention transformer blocks
+3. Applies MLP layers to predict actions
+
+Output shape: (batch_size, chunk_size, action_dim, 3)
+"""
+
+from .paracat_action_head import (
+    SelfAttentionBlock,
+    ParaCATActionHead,
+    create_paracat_action_head,
+)
+
+__all__ = [
+    "SelfAttentionBlock",
+    "ParaCATActionHead",
+    "create_paracat_action_head",
+]
+
+
+文件：Action_Heads/ParaCAT/model/action_head/paracat_action_head.py
+"""
+ParaCAT Action Head Implementation
+
+This module implements a cross-attention and self-attention based action head:
+1. Learnable query tokens (q_len = chunk_size * action_dim) attend to Pons output
+2. Self-attention transformer blocks process the attended features
+3. MLP layers predict final action values with output dim = 3
+4. Output is reshaped to (batch_size, chunk_size, action_dim, 3)
+
+Key Components:
+- SelfAttentionBlock: Single self-attention block with FFN (no mask)
+- ParaCATActionHead: Main action head class
+"""
+
+import torch
+import torch.nn as nn
+import math
+from typing import Optional
+
+class SelfAttentionBlock(nn.Module):
+    """
+    A single Self-Attention block for ParaCAT action head.
+
+    Structure:
+    ==========
+    1. Self-Attention (no mask, all positions attend to all)
+    2. LayerNorm + Residual
+    3. Feed-Forward Network (FFN)
+    4. LayerNorm + Residual
+
+    Data Flow:
+    ==========
+
+    Input (B, seq_len, D)
+          │
+          ▼
+    ┌─────────────────┐
+    │  Self-Attention │
+    │   (no mask)     │
+    └────────┬────────┘
+             │
+             ▼
+    ┌─────────────────┐
+    │  + Residual     │
+    │  + LayerNorm    │
+    └────────┬────────┘
+             │
+             ▼
+    ┌─────────────────┐
+    │      FFN        │
+    └────────┬────────┘
+             │
+             ▼
+    ┌─────────────────┐
+    │  + Residual     │
+    │  + LayerNorm    │
+    └────────┬────────┘
+             │
+             ▼
+    Output (B, seq_len, D)
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int,
+        num_heads: int = 8,
+        dropout: float = 0.1,
+        ffn_expansion: int = 4
+    ):
+        """
+        Initialize the Self-Attention block.
+
+        Args:
+            hidden_dim: Dimension of hidden states
+            num_heads: Number of attention heads
+            dropout: Dropout probability
+            ffn_expansion: FFN hidden dimension multiplier
+        """
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.num_heads = num_heads
+
+        # Self-Attention (no mask needed)
+        self.self_attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.self_attn_norm = nn.LayerNorm(hidden_dim)
+
+文件：Action_Heads/ParaCAT/train_multigpu_only_paracat.py
+"""
+ParaCAT Action Head 训练脚本 - 支持多GPU分布式训练 (仅 ParaCAT)
+
+使用预训练的 Pons 输出或直接使用 VLM hidden states 训练 ParaCAT Action Head。
+
+多GPU训练使用方法:
+  torchrun --nproc_per_node=4 train_multigpu_only_paracat.py \
+    --data_path /path/to/dataset \
+    --pons_checkpoint /path/to/pons.pt \
+    --steps 10000
+
+单GPU训练使用方法:
+  python train_multigpu_only_paracat.py \
+    --data_path /path/to/dataset \
+    --device cuda:0
+
+参数说明:
+  --pons_checkpoint: 预训练的 Pons checkpoint (可选，不提供则直接使用 VLM hidden states)
+  --freeze_pons: 冻结 Pons 参数 (仅训练 ParaCAT)
+  --discrete_actions: 启用 action 离散化 (ParaCAT 输出 3 类别)
+"""
+
+import argparse
+import json
+import os
+import sys
+import re
+import atexit
+import signal
+from pathlib import Path
+from typing import List, Optional, Dict
+import time
+from datetime import timedelta
+from dataclasses import dataclass
+from functools import partial
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import LambdaLR
+from torch.amp import autocast, GradScaler
+from tqdm import tqdm
+
+# 添加路径
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / 'utils'))
+
+from Action_Heads.ParaCAT.model.action_head.paracat_action_head import (
+    ParaCATActionHead, create_paracat_action_head
+)
+from Adapter.Pons.pons_adapter import PonsAdapter, create_pons_adapter
+from utils.lerobot_dataset_loader import (
+    LeRobotDataset,
+    collate_fn as lerobot_default_collate_fn,
+    SharedVLMCache,
+    preload_vlm_cache_distributed,
+    get_total_vlm_states,
+)
+
+# 可选 wandb
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+    print("⚠️ wandb 未安装")
+
+# ============================================================================
+# 训练配置类
+# ============================================================================
+
+@dataclass
+class TrainingConfig:
+    """ParaCAT Action Head 训练配置"""
+
+    # 数据相关参数
+    data_path: str = ""
+    batch_size: int = 32
+    num_workers: int = 4
+
+    # 训练超参数
+    steps: int = 10000
+    lr: float = 1e-4
+    weight_decay: float = 1e-5
+
+文件：Action_Heads/ParaCAT/train_multigpu_pons_paracat.py
+"""
+Pons + ParaCAT 联合训练脚本 - 支持多GPU分布式训练
+
+端到端训练 Pons Adapter 和 ParaCAT Action Head:
+  VLM Hidden States -> Pons -> ParaCAT -> Actions
+
+多GPU训练使用方法:
+  torchrun --nproc_per_node=4 train_multigpu_pons_paracat.py \
+    --data_path /path/to/dataset \
+    --steps 10000
+
+单GPU训练使用方法:
+  python train_multigpu_pons_paracat.py \
+    --data_path /path/to/dataset \
+    --device cuda:0
+
+特点:
+  - Pons 和 ParaCAT 联合训练
+  - 支持 action 离散化 (ParaCAT 输出 3 类别) 或连续输出
+  - Loss: L1Loss (连续) 或 CrossEntropyLoss (离散)
+"""
+
+import argparse
+import json
+import math
+import os
+import sys
+import re
+import atexit
+import signal
+from pathlib import Path
+from typing import List, Optional, Dict
+import time
+from datetime import timedelta
+from dataclasses import dataclass
+from functools import partial
+from contextlib import ExitStack
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import LambdaLR
+from torch.amp import autocast, GradScaler
+from tqdm import tqdm
+
+# 添加路径
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / 'utils'))
+
+from Action_Heads.ParaCAT.model.action_head.paracat_action_head import (
+    ParaCATActionHead, create_paracat_action_head
+)
+from Adapter.Pons.pons_adapter import PonsAdapter, create_pons_adapter
+from utils.lerobot_dataset_loader import (
+    LeRobotDataset,
+    collate_fn as lerobot_default_collate_fn,
+    SharedVLMCache,
+    preload_vlm_cache_distributed,
+    get_total_vlm_states,
+)
+
+# 可选 wandb
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+    print("⚠️ wandb 未安装")
+
+# ============================================================================
+# 训练配置类
+# ============================================================================
+
+@dataclass
+class TrainingConfig:
+    """Pons + ParaCAT 联合训练配置"""
+
+    # 数据相关参数
+    data_path: str = ""
+    batch_size: int = 32
+    num_workers: int = 4
+
+    # 训练超参数
+    steps: int = 10000
+
+文件：Adapter/Pons/__init__.py
+"""
+Pons Adapter Module
+
+A cross-attention based adapter that uses learnable query tokens
+to extract information from VLM hidden states.
+
+Architecture:
+- Merges multiple VLM hidden states along sequence dimension
+- Uses learnable query tokens with position encoding
+- Applies cross-attention blocks (Q queries VLM KV)
+- Outputs compressed features of shape (batch_size, q_seq_len, hidden_dim)
+"""
+
+from .pons_adapter import (
+    PonsCrossAttentionBlock,
+    PonsAdapter,
+    create_pons_adapter,
+)
+
+__all__ = [
+    "PonsCrossAttentionBlock",
+    "PonsAdapter",
+    "create_pons_adapter",
+]
+
+
+文件：Adapter/Pons/pons_adapter.py
+"""
+Pons Adapter Implementation
+
+This module implements a cross-attention based adapter that:
+1. Merges multiple VLM hidden states along the sequence dimension
+2. Uses learnable query tokens to attend to the merged VLM features
+3. Outputs compressed features for downstream tasks
+
+Key Components:
+- PonsCrossAttentionBlock: Single cross-attention block with FFN
+- PonsAdapter: Main adapter class with multiple blocks
+"""
+
+import torch
+import torch.nn as nn
+import math
+from typing import List, Optional, Union
+
+class PonsCrossAttentionBlock(nn.Module):
+    """
+    A single Cross-Attention block for the Pons adapter.
+
+    Structure:
+    ==========
+    1. Cross-Attention: Query attends to Key/Value from VLM hidden states
+    2. LayerNorm + Residual
+    3. Feed-Forward Network (FFN)
+    4. LayerNorm + Residual
+
+    Data Flow:
+    ==========
+
+    Query (learnable)     VLM Hidden States
+          │                      │
+          ▼                      ▼
+    ┌─────────────────────────────────┐
+    │     Cross-Attention             │
+    │  Q=query, K=vlm, V=vlm          │
+    └─────────────────────────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │  + Residual   │
+          │  + LayerNorm  │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │     FFN       │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │  + Residual   │
+          │  + LayerNorm  │
+          └───────────────┘
+                  │
+                  ▼
+              Output
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int,
+        num_heads: int = 8,
+        dropout: float = 0.1,
+        ffn_expansion: int = 4
+    ):
+        """
+        Initialize the Cross-Attention block.
+
+        Args:
+            hidden_dim: Dimension of hidden states (must match VLM hidden dim)
+            num_heads: Number of attention heads
+            dropout: Dropout probability
+            ffn_expansion: FFN hidden dimension multiplier (ffn_dim = hidden_dim * ffn_expansion)
+        """
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.num_heads = num_heads
+
+        # Cross-Attention: Query attends to VLM Key/Value
+        self.cross_attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.cross_attn_norm = nn.LayerNorm(hidden_dim)
+
+
+文件：Adapter/Pons/train_multigpu.py
+"""
+Pons Adapter 训练脚本 - 支持多GPU分布式训练
+
+Pons Adapter 单独训练，使用自监督或重建目标进行预训练。
+训练好的 Pons 可以用于下游任务（如 ParaCAT Action Head）。
+
+多GPU训练使用方法:
+  torchrun --nproc_per_node=4 train_multigpu.py \
+    --data_path /path/to/dataset \
+    --steps 10000
+
+单GPU训练使用方法:
+  python train_multigpu.py \
+    --data_path /path/to/dataset \
+    --device cuda:0
+
+训练目标:
+  - 自监督重建: Pons 输出经过投影后重建原始 VLM hidden states
+  - 或者与下游任务（ParaCAT）联合训练
+"""
+
+import argparse
+import json
+import os
+import sys
+import re
+import atexit
+import signal
+from pathlib import Path
+from typing import List, Optional, Dict
+import time
+from datetime import timedelta
+from dataclasses import dataclass
+from functools import partial
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import LambdaLR
+from torch.amp import autocast, GradScaler
+from tqdm import tqdm
+
+# 添加路径
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / 'utils'))
+
+from Adapter.Pons.pons_adapter import PonsAdapter, create_pons_adapter
+from utils.lerobot_dataset_loader import (
+    LeRobotDataset,
+    collate_fn as lerobot_default_collate_fn,
+    SharedVLMCache,
+    preload_vlm_cache_distributed,
+    get_total_vlm_states,
+)
+
+# 可选 wandb
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+    print("⚠️ wandb 未安装，将禁用 wandb 日志")
+
+# ============================================================================
+# 训练配置类
+# ============================================================================
+
+@dataclass
+class TrainingConfig:
+    """Pons Adapter 训练配置"""
+
+    # 数据相关参数
+    data_path: str = ""
+    batch_size: int = 32
+    num_workers: int = 4
+
+    # 训练超参数
+    steps: int = 10000
+    lr: float = 1e-4
+    weight_decay: float = 1e-5
+    warmup_ratio: float = 0.05
+    adam_beta1: float = 0.95
+    adam_beta2: float = 0.999
+
+
+文件：utils/__init__.py
+# utils 包初始化文件
+
+文件：utils/discrete.py
+"""
+离散化与反离散化工具函数
+
+离散化流程说明:
+================
+1. 离散化 (discrete_constrain_delta):
+   - 输入: 连续 action chunk 数据
+   - 输出: 离散化后的 action chunk，值为 {-1, 0, 1}
+   - 用途: 将连续动作转换为三元离散动作（后退、不动、前进）
+
+2. 训练时 (ParaCAT):
+   - Ground Truth: 将 {-1, 0, 1} 映射到类别索引 {0, 1, 2}
+     -1 -> 类别 0
+      0 -> 类别 1
+      1 -> 类别 2
+   - 输出: ParaCAT 输出 logits (shape: ..., 3)，不经过 softmax
+   - Loss: CrossEntropyLoss (内部自动处理 softmax)
+
+3. 推理时:
+   - 预测: argmax(logits) 得到类别索引 {0, 1, 2}
+   - 映射: 类别索引映射回 {-1, 0, 1}
+   - 反离散化: 乘以 delta 还原为连续值 {-delta, 0, delta}
+
+关键公式:
+=========
+- 离散化: 连续值 -> {-1, 0, 1}  (通过累积误差算法)
+- 反离散化: {-1, 0, 1} * delta -> {-delta, 0, delta}
+"""
+
+import numpy as np
+from typing import List, Optional, Union
+import torch
+
+def discrete_constrain_delta(X: np.ndarray, delta: float) -> np.ndarray:
+    """
+    离散化约束函数 - 将连续 action 转换为三元离散值 {-1, 0, 1}
+
+    算法说明:
+    - 使用累积误差算法，当累积误差超过 delta/2 时输出 ±1
+    - 误差会被保留到下一个时间步，保证整体轨迹一致性
+
+    Args:
+        X: 1D array，单列 action 数据 (chunk_size,)
+        delta: 离散化步长阈值
+
+    Returns:
+        离散化后的 action，值域为 {-1, 0, 1}
+
+    示例:
+        X = [0.015, 0.008, -0.012, 0.003], delta = 0.01
+        输出可能为 [1, 1, -1, 0]  (具体取决于累积误差)
+    """
+    X_new = X.copy()
+    dx0 = 0  # 累积误差
+    for i in range(len(X)):  # 修复: 处理所有元素，包括最后一个
+        dx = X_new[i] + dx0
+        if dx >= delta / 2:
+            X_new[i] = 1      # 输出 +1 (前进)
+            dx0 = dx - delta  # 保留超出部分作为下一步的累积误差
+        elif dx <= -delta / 2:
+            X_new[i] = -1     # 输出 -1 (后退)
+            dx0 = dx + delta  # 保留超出部分
+        else:
+            X_new[i] = 0      # 输出 0 (不动)
+            dx0 = dx          # 累积误差继续传递
+    return X_new
+
+# ! 没有cumsom累计求和操作
+def undiscrete_constrain_delta(X: np.ndarray, delta: float) -> np.ndarray:
+    """
+    反离散化函数 - 将三元离散值 {-1, 0, 1} 还原为连续值 {-delta, 0, delta}
+
+    公式: output = X * delta
+
+    Args:
+        X: 1D array，离散化后的 action 数据，值为 {-1, 0, 1}
+        delta: 离散化步长
+
+    Returns:
+        反离散化后的 action，值域为 {-delta, 0, delta}
+
+    示例:
+        X = [1, 1, -1, 0], delta = 0.01
+        输出: [0.01, 0.01, -0.01, 0]
+    """
+    X_new = X.copy()
+    X_new = X_new * delta
+    return X_new
+
+# !
+
+文件：utils/polyfit_chunk.py
+import numpy as np
+import math
+
+def polyfit_chunk(frames: np.ndarray, values: np.ndarray, degree: int = 3):
+    """
+    对单个chunk进行多项式拟合（手动实现最小二乘法）
+
+    数学原理：
+    给定数据点 (x_i, y_i)，找 n 阶多项式 p(x) = a_0 + a_1*x + a_2*x^2 + ... + a_n*x^n
+    使得 Σ(y_i - p(x_i))^2 最小
+
+    构建范德蒙矩阵 V：
+        V[i,j] = x_i^j, 其中 i=0..m-1, j=0..n
+
+    解正规方程：(V^T * V) * a = V^T * y
+    系数向量：a = (V^T * V)^(-1) * V^T * y
+
+    Args:
+        frames: 帧索引数组 (x 值)
+        values: action值数组 (y 值)
+        degree: 多项式阶数，默认3阶
+
+    Returns:
+        fitted_values: 拟合后的值
+        coeffs: 多项式系数 [a_n, a_{n-1}, ..., a_1, a_0]（高次到低次）
+        r_squared: R²值（拟合优度）
+    """
+    x = frames.astype(np.float64)
+    y = values.astype(np.float64)
+    n = len(x)
+
+    # 数值稳定性处理：对 x 进行归一化
+    x_mean = np.mean(x)
+    x_std = np.std(x) if np.std(x) > 0 else 1.0
+    x_norm = (x - x_mean) / x_std
+
+    # 构建范德蒙矩阵 V[i,j] = x_norm[i]^j
+    # V 的形状是 (n, degree+1)
+    V = np.zeros((n, degree + 1))
+    for j in range(degree + 1):
+        V[:, j] = x_norm ** j
+
+    # 解正规方程：(V^T * V) * a = V^T * y
+    # a = (V^T * V)^(-1) * V^T * y
+    VtV = V.T @ V  # (degree+1, degree+1)
+    Vty = V.T @ y  # (degree+1,)
+
+    # 使用求解线性方程组（比直接求逆更稳定）
+    coeffs_norm = np.linalg.solve(VtV, Vty)  # [a_0, a_1, ..., a_n]
+
+    # 计算拟合值
+    fitted_values = V @ coeffs_norm
+
+    # 将归一化系数转换回原始坐标系的系数
+    # p(x) = Σ a_j * ((x - x_mean) / x_std)^j
+    # 展开后得到原始 x 的系数
+    coeffs_original = np.zeros(degree + 1)
+    for j in range(degree + 1):
+        # 二项式展开: ((x - x_mean) / x_std)^j = Σ C(j,k) * (-x_mean/x_std)^(j-k) * (x/x_std)^k
+        for k in range(j + 1):
+            binom_coeff = math.comb(j, k)
+            term = binom_coeff * ((-x_mean / x_std) ** (j - k)) * (1 / x_std) ** k
+            coeffs_original[k] += coeffs_norm[j] * term
+
+    # 转换为高次到低次的顺序 [a_n, a_{n-1}, ..., a_0]
+    coeffs = coeffs_original[::-1]
+
+    # 计算R²值（决定系数）
+    ss_res = np.sum((y - fitted_values) ** 2)  # 残差平方和
+    ss_tot = np.sum((y - np.mean(y)) ** 2)      # 总平方和
+    r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 1.0
+
+    return fitted_values, coeffs, r_squared
+
+文件：utils/euler_unwrap.py
+"""
+欧拉角解卷绕处理模块
+
+处理欧拉角在 -180/180 度边界的跳变问题，使角度变化连续。
+
+问题背景:
+    欧拉角范围是 -180 到 180 度，当角度跨越边界时会发生跳变：
+    - 例如：从 179° 变化到 -179°，实际只转了 2°，但数值变化了 358°
+    - 这会导致 delta 计算出现错误的大幅跳变
+
+解决方案:
+    使用 np.unwrap 函数对角度序列进行"解卷绕"处理，使变化连续：
+    - 原始数据: [170, 175, 180, -175, -170]  # 发生跳变
+    - 解卷绕后: [170, 175, 180,  185,  190]  # 连续变化
+"""
+
+import numpy as np
+from typing import List
+
+def unwrap_euler_angles(
+    states: np.ndarray,
+    indices: List[int],
+    unit: str = "degree"
+) -> np.ndarray:
+    """
+    对指定索引的欧拉角进行解卷绕处理
+
+    当欧拉角从 179° 跳变到 -179° 时，实际只转了 2°，
+    但数值变化了 358°。此函数将角度序列"解卷绕"，使变化连续。
+
+    Args:
+        states: state 数组，shape 为 (num_frames, state_dim)
+        indices: 欧拉角所在的索引列表（基于组合后 state 的全局索引）
+        unit: 角度单位，"degree" 或 "radian"，默认 "degree"
+
+    Returns:
+        处理后的 state 数组（副本，不修改原数组）
+
+    Example:
+        >>> states = np.array([[170], [175], [180], [-175], [-170]], dtype=np.float32)
+        >>> result = unwrap_euler_angles(states, [0])
+        >>> print(result.flatten())  # [170. 175. 180. 185. 190.]
+
+    Note:
+        - 解卷绕后的角度值可能超出 [-180, 180] 范围，这是正常的
+        - 每个 episode 应独立调用此函数，不要跨 episode 处理
+    """
+    if len(indices) == 0:
+        return states
+
+    states = states.copy()  # 避免修改原数据
+
+    for idx in indices:
+        if idx < 0 or idx >= states.shape[1]:
+            raise IndexError(
+                f"欧拉角索引 {idx} 超出 state 维度范围 [0, {states.shape[1]})"
+            )
+
+        if unit == "degree":
+            # 度 -> 弧度 -> unwrap -> 度
+            angles_rad = np.deg2rad(states[:, idx])
+            unwrapped_rad = np.unwrap(angles_rad)
+            states[:, idx] = np.rad2deg(unwrapped_rad)
+        else:
+            # 直接 unwrap（假设是弧度）
+            states[:, idx] = np.unwrap(states[:, idx])
+
+    return states
+
+def parse_euler_indices(indices_str: str) -> List[int]:
+    """
+    解析欧拉角索引字符串
+
+    Args:
+        indices_str: 索引字符串，支持格式：
+            - "3,4,5,15,16,17"
+            - "[3,4,5,15,16,17]"
+            - "3, 4, 5"（带空格）
+
+    Returns:
+        索引列表
+
+    Example:
+        >>> parse_euler_indices("3,4,5,15,16,17")
+        [3, 4, 5, 15, 16, 17]
+        >>> parse_euler_indices("[3, 4, 5]")
+        [3, 4, 5]
+        >>> parse_euler_indices("")
+        []
+    """
+
+文件：utils/hand_processor.py
+"""
+Hand Binary Processor - 手部数据二值化处理
+
+将手部电机位置数据转换为二值化的夹爪状态:
+- 6个值取平均 > 442  -> 1 (张开)
+- 6个值取平均 <= 442 -> 0 (闭合)
+
+输入 6 维，输出 1 维
+"""
+
+import numpy as np
+from typing import Optional
+from .base_processor import BaseProcessor
+
+class HandBinaryProcessor(BaseProcessor):
+    """
+    手部数据二值化处理器
+
+    将手部电机位置数据（6维）转换为二值化状态（1维）。
+
+    处理逻辑:
+    1. 将 6 个值相加取平均
+    2. 平均值 > threshold (默认442) -> 输出 1 (张开)
+    3. 平均值 <= threshold -> 输出 0 (闭合)
+
+    输入: (num_frames, 6)
+    输出: (num_frames, 1)
+    """
+
+    def __init__(self, threshold: float = 442.0):
+        """
+        初始化手部处理器
+
+        Args:
+            threshold: 二值化阈值，默认为 442
+        """
+        self.threshold = threshold
+
+    @property
+    def name(self) -> str:
+        return "hand_binary"
+
+    def get_output_dim(self, input_dim: int) -> int:
+        """
+        计算输出维度
+
+        无论输入多少维，输出都是 1 维
+        """
+        return 1
+
+    def process(
+        self,
+        states: np.ndarray,
+        indices: Optional[tuple] = None
+    ) -> np.ndarray:
+        """
+        将手部数据二值化
+
+        Args:
+            states: state 数据数组，shape 为 (num_frames, 6) 或 (num_frames, state_dim)
+            indices: 可选的索引范围 (start, end)，指定要处理的维度
+
+        Returns:
+            二值化后的 action 数据，shape 为 (num_frames, 1)
+        """
+        if states.ndim == 1:
+            states = states.reshape(-1, 1)
+
+        # 如果指定了索引范围，只处理该范围的维度
+        if indices is not None:
+            start, end = indices
+            data = states[:, start:end]
+        else:
+            data = states
+
+        # 6 个值取平均
+        mean_values = np.mean(data, axis=1, keepdims=True)
+
+        # 二值化处理: 平均值 > threshold -> 1, 否则 -> 0
+        binary_data = np.where(mean_values > self.threshold, 1.0, 0.0).astype(np.float32)
+
+        return binary_data
+
+文件：utils/lerobot_dataset_loader.py
+"""
+Universal LeRobot Dataset Loader
+通用 LeRobot 数据集加载器 - 加载完整数据，供各个模块使用
+
+这个加载器会加载 LeRobot 格式数据集的所有数据：
+- VLM hidden states
+- Observation states (proprioception)
+- Actions
+- 其他元数据
+
+各个模块（VLM, Action Heads等）可以从完整数据中提取所需的部分。
+
+重要提示：
+- 图像数据在加载时保持原始 uint8 格式（0-255），**不进行归一化处理**
+- VLM 模块会根据各自需求进行图像预处理（如 Eagle 会归一化到 [-1, 1]，Qwen 有自己的归一化方式）
+"""
+
+import os
+import json
+import numpy as np
+import pandas as pd
+import torch
+from torch.utils.data import Dataset, DataLoader
+from pathlib import Path
+from typing import List, Dict, Tuple, Optional, Any
+import warnings
+import contextlib
+from collections import OrderedDict
+from multiprocessing import shared_memory
+from functools import partial
+import av
+from PIL import Image
+import io
+import torch.distributed as dist
+
+# 导入离散化函数
+try:
+    from .discrete import discrete_constrain_delta, discrete_chunk_calculus, discrete_with_method, DISCRETE_METHODS
+except ImportError:
+    # 当直接运行此文件时的后备导入
+    from discrete import discrete_constrain_delta, discrete_chunk_calculus, discrete_with_method, DISCRETE_METHODS
+
+# ============================================================================
+# 欧拉角转轴角函数 (NumPy 版本，用于 Action 预处理)
+# ============================================================================
+
+def euler_to_quat_numpy(euler: np.ndarray) -> np.ndarray:
+    """
+    欧拉角转四元数 (NumPy 批量版本)
+
+    Args:
+        euler: (..., 3) 欧拉角 (roll, pitch, yaw)
+
+    Returns:
+        quat: (..., 4) 四元数 (qx, qy, qz, qw)
+    """
+    roll = euler[..., 0]
+    pitch = euler[..., 1]
+    yaw = euler[..., 2]
+
+    cy = np.cos(yaw * 0.5)
+    sy = np.sin(yaw * 0.5)
+    cp = np.cos(pitch * 0.5)
+    sp = np.sin(pitch * 0.5)
+    cr = np.cos(roll * 0.5)
+    sr = np.sin(roll * 0.5)
+
+    qw = cr * cp * cy + sr * sp * sy
+    qx = sr * cp * cy - cr * sp * sy
+    qy = cr * sp * cy + sr * cp * sy
+    qz = cr * cp * sy - sr * sp * cy
+
+    return np.stack([qx, qy, qz, qw], axis=-1)
+
+def quat_to_axisangle_numpy(quat: np.ndarray) -> np.ndarray:
+    """
+    四元数转轴角 (NumPy 批量版本)
+
+    Args:
+        quat: (..., 4) 四元数 (qx, qy, qz, qw)
+
+    Returns:
+        axis_angle: (..., 3) 轴角 (ax, ay, az)，范围 [-pi, pi]
+    """
+    qx, qy, qz, qw = quat[..., 0], quat[..., 1], quat[..., 2], quat[..., 3]
+    qw = np.clip(qw, -1.0, 1.0)
+
+    den = np.sqrt(1.0 - qw * qw)
+    angle = 2.0 * np.arccos(qw)
+
+
+文件：utils/webdataset_utils.py
+"""
+WebDataset 工具集 - 大规模数据集训练优化
+WebDataset Utilities for Large-Scale Dataset Training
+
+功能：
+1. 将 LeRobot 格式数据集转换为 WebDataset tar 分片
+2. 提供 WebDataset 兼容的数据加载器
+3. 支持分布式训练的数据分片
+
+使用方法：
+
+1. 转换数据集 (在项目根目录执行):
+
+   # 保留原始精度 (默认)
+   python -m utils.webdataset_utils convert \\
+       --input_path /data/.../libero_lerobot_spatial_sys0_cosmos_-1 \\
+       --samples_per_shard 5000 \\
+       --num_action_chunks 25
+
+   # 转换为 float16 (减半存储空间)
+   python -m utils.webdataset_utils convert \\
+       --input_path /data/.../libero_lerobot_spatial_sys0_cosmos_-1 \\
+       --samples_per_shard 5000 \\
+       --num_action_chunks 25 \\
+       --convert_vlm_dtype \\
+       --vlm_dtype float16
+
+   # 输出目录自动创建: input_path/webdataset_shard5000_ac25/
+
+2. 在训练脚本中配置 (train_qwen.sh):
+
+   USE_WEBDATASET="true"
+   # 使用 brace expansion 匹配多个分片: {000000..000012} 展开为 000000, 000001, ..., 000012
+   WEBDATASET_SHARD_PATTERN="/data/.../webdataset_shard5000_ac25/shard-{000000..000012}.tar"
+
+3. 在 Python 中使用:
+
+   from utils.webdataset_utils import create_webdataset_loader
+   train_loader = create_webdataset_loader(
+       shard_pattern="/path/shards/shard-{000000..000012}.tar",
+       batch_size=32,
+       num_workers=8,
+       distributed=True,
+       rank=rank,
+       world_size=world_size,
+   )
+
+转换后的 tar 文件结构:
+   shard-000000.tar
+   ├── 00000000.vlm.npy      # VLM hidden states (num_layers, seq_len, hidden_dim)
+   ├── 00000000.state.npy    # observation state (state_dim,)
+   ├── 00000000.action.npy   # actions (num_action_chunks, action_dim)
+   ├── 00000000.meta.json    # {episode_index, frame_index, vlm_index, task_description}
+   └── ...
+"""
+
+import os
+import io
+import json
+import argparse
+import tarfile
+import numpy as np
+import pandas as pd
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any, Iterator
+from functools import partial
+import torch
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+# WebDataset 导入（延迟导入以避免未安装时报错）
+try:
+    import webdataset as wds
+    WEBDATASET_AVAILABLE = True
+except ImportError:
+    WEBDATASET_AVAILABLE = False
+    print("⚠️ WebDataset not installed. Install with: pip install webdataset")
+
+# ============================================================================
+# 数据转换工具
+# ============================================================================
+
+class LeRobotToWebDatasetConverter:
+    """
+    将 LeRobot 格式数据集转换为 WebDataset tar 分片
+
+    LeRobot 格式:
+    - data/chunk-XXX/episode_XXXXXX.parquet (actions, states)
+    - vlm_hidden_states/hidden_state_XXXXXX.npy
+    - videos/chunk-XXX/observation.images.XXX/episode_XXXXXX.mp4
+
+文件：utils/migrate_vlm_npy_to_chunk_npz.py
+#!/usr/bin/env python3
+"""
+将已有的 per-episode .npy VLM hidden states 打包为 chunk-level .npz 文件。
+
+转换前:
+    vlm_hidden_states/
+    ├── episode_000000.npy
+    ├── episode_000001.npy
+    └── ...
+
+转换后:
+    vlm_hidden_states/
+    ├── chunk-000.npz   (episode 0~999)
+    ├── chunk-001.npz   (episode 1000~1999)
+    └── ...
+
+用法:
+    # 迁移单个数据集
+    python utils/migrate_vlm_npy_to_chunk_npz.py \
+        --dataset_root /data_disk1/hwl/unitree_train_v2_recipe_lerobot/austin_buds_dataset_converted_externally_to_rlds
+
+    # 迁移整个根目录下所有数据集
+    python utils/migrate_vlm_npy_to_chunk_npz.py \
+        --dataset_root /data_disk1/hwl/unitree_train_v2_recipe_lerobot \
+        --all
+
+    # 迁移后删除旧 .npy 文件 (释放 inode)
+    python utils/migrate_vlm_npy_to_chunk_npz.py \
+        --dataset_root /data_disk1/hwl/unitree_train_v2_recipe_lerobot \
+        --all --delete_old
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from collections import defaultdict
+from pathlib import Path
+
+import numpy as np
+from tqdm import tqdm
+
+def get_chunks_size(dataset_path: Path) -> int:
+    info_path = dataset_path / "meta" / "info.json"
+    if info_path.exists():
+        with open(info_path) as f:
+            return json.load(f).get("chunks_size", 1000)
+    return 1000
+
+def migrate_single_dataset(dataset_path: Path, delete_old: bool = False):
+    vlm_dir = dataset_path / "vlm_hidden_states"
+    if not vlm_dir.exists():
+        print(f"  跳过 (无 vlm_hidden_states): {dataset_path.name}")
+        return
+
+    npy_files = sorted(vlm_dir.glob("episode_*.npy"))
+    if not npy_files:
+        if any(vlm_dir.glob("chunk-*.npz")):
+            print(f"  跳过 (已是 chunk-npz 格式): {dataset_path.name}")
+        else:
+            print(f"  跳过 (无 episode npy 文件): {dataset_path.name}")
+        return
+
+    chunks_size = get_chunks_size(dataset_path)
+    print(f"\n  迁移: {dataset_path.name} ({len(npy_files)} episodes, chunks_size={chunks_size})")
+
+    chunk_groups: dict[int, list[tuple[str, Path]]] = defaultdict(list)
+    for npy_file in npy_files:
+        ep_idx = int(npy_file.stem.replace("episode_", ""))
+        chunk_idx = ep_idx // chunks_size
+        chunk_groups[chunk_idx].append((f"episode_{ep_idx:06d}", npy_file))
+
+    files_to_delete = []
+
+    for chunk_idx in tqdm(sorted(chunk_groups.keys()), desc=f"  Packing {dataset_path.name}"):
+        npz_path = vlm_dir / f"chunk-{chunk_idx:03d}.npz"
+
+        existing = {}
+        if npz_path.exists():
+            try:
+                with np.load(npz_path, allow_pickle=False) as old:
+                    existing = {k: old[k] for k in old.files}
+            except Exception:
+                pass
+
+        for ep_key, npy_file in chunk_groups[chunk_idx]:
+            if ep_key not in existing:
+                existing[ep_key] = np.load(npy_file)
+
+
+文件：utils/extract_vlm_hidden_state/S0_1/qwen/qwen_extract_vlm_hidden_states.py
+#!/usr/bin/env python3
+"""
+Qwen3-VL Hidden States 提取脚本
+
+从 LeRobot 格式数据集中使用 Qwen3-VL 模型提取 hidden states。
+
+================================================================================
+                              使用说明
+================================================================================
+
+基本用法:
+    python qwen_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --model_path Qwen/Qwen3-VL-2B-Instruct
+
+使用默认 Qwen3-VL-2B 模型:
+    python qwen_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset
+
+自定义提取层:
+    python qwen_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --layers "14,15,16"
+
+断点续传:
+    python qwen_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --start_idx 1000 \\
+        --end_idx 2000
+
+自定义图像视角:
+    python qwen_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --image_keys "top,left_wrist"
+
+================================================================================
+                              参数说明
+================================================================================
+
+必需参数:
+    --dataset_path      : LeRobot 数据集路径
+
+可选参数:
+    --model_path        : Qwen3-VL 模型路径 (默认: Qwen/Qwen3-VL-2B-Instruct)
+    --output_dir        : 输出目录 (默认: {dataset_path}/vlm_hidden_states)
+    --layers            : 提取的层号，逗号分隔 (默认: "14")
+                          Qwen3-VL-2B 共有 28 层 transformer (层号 1-28)
+    --image_keys        : 图像视角键名，逗号分隔 (默认: "agentview,wrist")
+    --device            : 设备 (默认: "cuda:0")
+    --num_workers       : 数据预加载 worker 数 (默认: 4)
+    --prefetch_size     : 预加载队列大小 (默认: 8)
+    --start_idx         : 起始帧索引 (断点续传)
+    --end_idx           : 结束帧索引 (断点续传)
+    --prompt_template   : Prompt 模板 (默认: "action")
+    --content_order     : 内容顺序 (默认: "images_first")
+    --flip_images       : 翻转图像 (默认: True)
+    --no_flip_images    : 不翻转图像
+    --verbose           : 详细输出
+
+================================================================================
+                              数据集要求
+================================================================================
+
+数据集结构:
+    {dataset_path}/
+    ├── meta/
+    │   ├── info.json           # 数据集信息
+    │   └── tasks.jsonl         # 任务描述
+    ├── data/
+    │   └── chunk-XXX/          # parquet 文件
+    └── videos/
+        └── chunk-XXX/
+            ├── observation.images.{key1}/  # 第一个视角
+            └── observation.images.{key2}/  # 第二个视角
+
+输出格式:
+    {output_dir}/
+    ├── chunk-XXX.npz            # 默认 (per-episode / chunk 打包)
+    │                            # 每个 key: "episode_XXXXXX" -> (num_frames, num_layers, seq_len, hidden_dim)
+    └── hidden_state_XXXXXX.npy  # 旧格式 (--no_save_per_episode), shape: (num_layers, seq_len, hidden_dim)
+
+================================================================================
+                              模型信息
+================================================================================
+
+Qwen3-VL 系列模型:
+    - Qwen3-VL-2B-Instruct: 28 层 transformer, hidden_dim=1536
+    - Qwen3-VL-4B-Instruct: 28 层 transformer, hidden_dim=2560
+    - Qwen3-VL-7B-Instruct: 28 层 transformer, hidden_dim=3584
+
+
+文件：utils/extract_vlm_hidden_state/S0_1/qwen/qwen_multi_dataset_multi_gpu_extraction.py
+#!/usr/bin/env python3
+"""
+Qwen3-VL 多数据集多 GPU Hidden States 提取脚本
+
+功能:
+1. 自动枚举 `dataset_root` 下的多个 LeRobot 子数据集
+2. 每个 GPU 启动一个独立 worker，并在该 worker 内常驻加载一个完整模型
+3. 每个子数据集自动检测自己的 image keys，也支持手动覆盖
+4. 多个数据集按队列分发到不同 GPU 上并行提取
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import json
+import time
+import argparse
+import traceback
+import multiprocessing as mp
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Set
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from utils.extract_vlm_hidden_state.S0_1.qwen.qwen_extract_vlm_hidden_states import (
+    DEFAULT_QWEN_MODEL_PATH,
+    resolve_image_keys,
+    validate_layers,
+)
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Qwen3-VL 多数据集多 GPU Hidden States 提取工具"
+    )
+
+    parser.add_argument(
+        "--dataset_root",
+        type=str,
+        required=True,
+        help="包含多个 LeRobot 子数据集的根目录",
+    )
+    parser.add_argument(
+        "--dataset_names",
+        type=str,
+        default=None,
+        help="仅处理指定子数据集，逗号分隔；不传则优先按 recipe.json 枚举",
+    )
+    parser.add_argument(
+        "--output_root",
+        type=str,
+        default=None,
+        help="统一输出根目录；不传则输出到各自数据集目录下的 vlm_hidden_states",
+    )
+    parser.add_argument(
+        "--gpu_ids",
+        type=str,
+        default="0",
+        help="参与推理的 GPU 编号，逗号分隔，例如: 0,1,2,3",
+    )
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        default=DEFAULT_QWEN_MODEL_PATH,
+        help=f"Qwen3-VL 模型路径 (默认: {DEFAULT_QWEN_MODEL_PATH})",
+    )
+    parser.add_argument(
+        "--layers",
+        type=str,
+        default="14",
+        help="提取层号，逗号分隔 (默认: 14)",
+    )
+    parser.add_argument(
+        "--image_keys",
+        type=str,
+        default=None,
+        help="手动指定所有数据集共用的图像键；不传则每个数据集自动检测",
+    )
+    parser.add_argument(
+        "--auto_image_keys",
+        action="store_true",
+        default=True,
+        help="自动从每个数据集检测图像视角键名 (默认: True)",
+    )
+    parser.add_argument(
+        "--no_auto_image_keys",
+        action="store_false",
+
+文件：utils/extract_vlm_hidden_state/S0_1/eagle/eagle_extract_vlm_hidden_states.py
+#!/usr/bin/env python3
+"""
+Eagle 2.5 VL Hidden States 提取脚本
+
+从 LeRobot 格式数据集中使用 Eagle 2.5 VL 模型提取 hidden states。
+
+================================================================================
+                              使用说明
+================================================================================
+
+基本用法:
+    python eagle_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --model_path /path/to/eagle_model
+
+使用默认 GR00T-N1.5-3B 模型:
+    python eagle_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset
+
+自定义提取层:
+    python eagle_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --layers "-4,-3,-2"
+
+断点续传:
+    python eagle_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --start_idx 1000 \\
+        --end_idx 2000
+
+自定义图像视角:
+    python eagle_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --image_keys "top,left_wrist"
+
+================================================================================
+                              参数说明
+================================================================================
+
+必需参数:
+    --dataset_path      : LeRobot 数据集路径
+
+可选参数:
+    --model_path        : Eagle 模型路径 (默认使用 GR00T-N1.5-3B)
+    --output_dir        : 输出目录 (默认: {dataset_path}/vlm_hidden_states)
+    --layers            : 提取的层号，逗号分隔 (默认: "-1")
+    --image_keys        : 图像视角键名，逗号分隔 (默认: "agentview,wrist")
+    --device            : 设备 (默认: "cuda:0")
+    --num_workers       : 数据预加载 worker 数 (默认: 4)
+    --prefetch_size     : 预加载队列大小 (默认: 8)
+    --start_idx         : 起始帧索引 (断点续传)
+    --end_idx           : 结束帧索引 (断点续传)
+    --prompt_template   : Prompt 模板 (默认: "action")
+    --content_order     : 内容顺序 (默认: "images_first")
+    --flip_images       : 翻转图像 (默认: True)
+    --no_flip_images    : 不翻转图像
+    --verbose           : 详细输出
+
+================================================================================
+                              数据集要求
+================================================================================
+
+数据集结构:
+    {dataset_path}/
+    ├── meta/
+    │   ├── info.json           # 数据集信息
+    │   └── tasks.jsonl         # 任务描述
+    ├── data/
+    │   └── chunk-XXX/          # parquet 文件
+    └── videos/
+        └── chunk-XXX/
+            ├── observation.images.{key1}/  # 第一个视角
+            └── observation.images.{key2}/  # 第二个视角
+
+输出格式:
+    {output_dir}/
+    └── hidden_state_XXXXXX.npy  # shape: (num_layers, seq_len, hidden_dim)
+
+================================================================================
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import argparse
+from pathlib import Path
+from typing import List, Optional
+
+# 添加项目根目录到 Python 路径
+
+文件：utils/extract_vlm_hidden_state/S0_1/cosmos/cosmos_extract_vlm_hidden_states.py
+#!/usr/bin/env python3
+"""
+Cosmos Reason 2B VL Hidden States 提取脚本
+
+从 LeRobot 格式数据集中使用 Cosmos Reason 2B VL 模型提取 hidden states。
+
+================================================================================
+                              使用说明
+================================================================================
+
+基本用法:
+    python cosmos_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --model_path /path/to/cosmos_model
+
+使用默认 Eagle-Block2A-2B-v2 模型:
+    python cosmos_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset
+
+自定义提取层:
+    python cosmos_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --layers "-1"
+
+断点续传:
+    python cosmos_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --start_idx 1000 \\
+        --end_idx 2000
+
+自定义图像视角:
+    python cosmos_extract_vlm_hidden_states.py \\
+        --dataset_path /path/to/lerobot_dataset \\
+        --image_keys "top,left_wrist"
+
+================================================================================
+                              参数说明
+================================================================================
+
+必需参数:
+    --dataset_path      : LeRobot 数据集路径
+
+可选参数:
+    --model_path        : Cosmos 模型路径 (默认使用 Eagle-Block2A-2B-v2)
+    --output_dir        : 输出目录 (默认: {dataset_path}/vlm_hidden_states)
+    --layers            : 提取的层号，逗号分隔 (默认: "-1")
+    --image_keys        : 图像视角键名，逗号分隔 (默认: "agentview,wrist")
+    --device            : 设备 (默认: "cuda:0")
+    --num_workers       : 数据预加载 worker 数 (默认: 4)
+    --prefetch_size     : 预加载队列大小 (默认: 8)
+    --start_idx         : 起始帧索引 (断点续传)
+    --end_idx           : 结束帧索引 (断点续传)
+    --prompt_template   : Prompt 模板 (默认: "action")
+    --content_order     : 内容顺序 (默认: "images_first")
+    --flip_images       : 翻转图像 (默认: True)
+    --no_flip_images    : 不翻转图像
+    --verbose           : 详细输出
+
+================================================================================
+                              数据集要求
+================================================================================
+
+数据集结构:
+    {dataset_path}/
+    ├── meta/
+    │   ├── info.json           # 数据集信息
+    │   └── tasks.jsonl         # 任务描述
+    ├── data/
+    │   └── chunk-XXX/          # parquet 文件
+    └── videos/
+        └── chunk-XXX/
+            ├── observation.images.{key1}/  # 第一个视角
+            └── observation.images.{key2}/  # 第二个视角
+
+输出格式:
+    {output_dir}/
+    └── hidden_state_XXXXXX.npy  # shape: (num_layers, seq_len, hidden_dim)
+
+================================================================================
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import argparse
+from pathlib import Path
+from typing import List, Optional
+
+# 添加项目根目录到 Python 路径
+
+文件：utils/dataset_format_transform/final_format_lerobot/libero_dataset/libero_data_transform_for_Sai/libero_to_lerobot.py
+#!/usr/bin/env python3
+"""
+Convert LIBERO HDF5 datasets to LeRobot format
+
+Usage:
+    python libero_to_lerobot.py --input-dir /data/HuangWenlong/datasets/libero_github/libero_10 \
+                                  --output-dir /data/output/libero_10_lerobot \
+                                  --fps 10
+"""
+
+import argparse
+import json
+import logging
+import shutil
+import time
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import cv2
+import h5py
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+from tqdm import tqdm
+import contextlib
+
+def read_hdf5_structure(hdf5_file: Path) -> Dict:
+    """Read HDF5 file structure to understand data format"""
+    with h5py.File(hdf5_file, 'r') as f:
+        demos = list(f['data'].keys())
+
+        # Get info from first demo
+        first_demo = f['data'][demos[0]]
+        info = {
+            'num_demos': len(demos),
+            'keys': list(first_demo.keys()),
+            'action_shape': first_demo['actions'].shape,
+            'obs_keys': list(first_demo['obs'].keys()) if 'obs' in first_demo else []
+        }
+
+        if 'obs' in first_demo:
+            obs = first_demo['obs']
+            info['obs_shapes'] = {k: v.shape for k, v in obs.items()}
+
+    return info
+
+def extract_demo_data(hdf5_file: Path, demo_key: str) -> Dict[str, np.ndarray]:
+    """Extract data from a single demo"""
+    with h5py.File(hdf5_file, 'r') as f:
+        demo = f['data'][demo_key]
+
+        actions = demo['actions'][:]  # (T, 7)
+        robot_states = demo['robot_states'][:]  # (T, 9)
+        agentview_rgb = demo['obs']['agentview_rgb'][:]  # (T, 128, 128, 3)
+        eye_in_hand_rgb = demo['obs']['eye_in_hand_rgb'][:]  # (T, 128, 128, 3)
+        dones = demo['dones'][:]
+
+        rewards_dataset = demo.get('rewards')
+        if rewards_dataset is not None:
+            rewards = rewards_dataset[:]
+        else:
+            rewards = np.zeros(len(actions), dtype=actions.dtype)
+
+        data = {
+            'actions': actions,
+            'robot_states': robot_states,
+            'agentview_rgb': agentview_rgb,
+            'eye_in_hand_rgb': eye_in_hand_rgb,
+            'dones': dones,
+            'rewards': rewards,
+        }
+
+    return data
+
+def save_episode_parquet(
+    data: Dict[str, np.ndarray],
+    episode_idx: int,
+    task_idx: int,
+    task_name: str,
+    output_chunk_dir: Path,
+    global_index_start: int,
+    fps: float = 10.0
+) -> Tuple[pd.DataFrame, int]:
+    """Save episode data as parquet file"""
+
+    num_frames = len(data['actions'])
+    if num_frames == 0:
+        raise ValueError("Episode contains no frames and cannot be written to parquet.")
+
+
+文件：utils/dataset_format_transform/final_format_lerobot/libero_dataset/libero_data_transform_for_Sai/generate_stats_json.py
+#!/usr/bin/env python3
+"""
+为LeRobot数据集生成stats.json文件
+
+读取数据集中的所有parquet文件，计算数值特征的统计信息
+"""
+
+import argparse
+import json
+import numpy as np
+import pandas as pd
+from pathlib import Path
+from tqdm import tqdm
+from typing import Dict, List, Any
+
+def load_dataset_info(dataset_path: Path) -> dict:
+    """加载数据集info.json"""
+    info_path = dataset_path / "meta" / "info.json"
+    if not info_path.exists():
+        raise FileNotFoundError(f"未找到info.json: {info_path}")
+
+    with open(info_path, 'r') as f:
+        return json.load(f)
+
+def collect_all_data(dataset_path: Path, info: dict) -> pd.DataFrame:
+    """收集所有parquet文件的数据"""
+    data_dir = dataset_path / "data"
+    parquet_files = sorted(data_dir.rglob("*.parquet"))
+
+    if not parquet_files:
+        raise FileNotFoundError(f"未找到任何parquet文件: {data_dir}")
+
+    print(f"\n读取 {len(parquet_files)} 个parquet文件...")
+
+    dfs = []
+    for parquet_file in tqdm(parquet_files, desc="加载数据"):
+        df = pd.read_parquet(parquet_file)
+        dfs.append(df)
+
+    # 合并所有数据
+    full_df = pd.concat(dfs, ignore_index=True)
+    print(f"总共加载 {len(full_df)} 行数据")
+
+    return full_df
+
+def calculate_stats(data: np.ndarray) -> Dict[str, List[float]]:
+    """计算统计信息
+
+    Args:
+        data: numpy数组，shape为 (n_samples, n_features) 或 (n_samples,)
+
+    Returns:
+        包含mean, std, min, max, q01, q99的字典
+    """
+    # 确保是2D数组
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
+
+    stats = {
+        "mean": np.mean(data, axis=0).astype(float).tolist(),
+        "std": np.std(data, axis=0).astype(float).tolist(),
+        "min": np.min(data, axis=0).astype(float).tolist(),
+        "max": np.max(data, axis=0).astype(float).tolist(),
+        "q01": np.percentile(data, 1, axis=0).astype(float).tolist(),
+        "q99": np.percentile(data, 99, axis=0).astype(float).tolist(),
+    }
+
+    return stats
+
+def process_feature(df: pd.DataFrame, feature_name: str, feature_info: dict) -> Dict[str, List[float]]:
+    """处理单个特征的统计信息
+
+    Args:
+        df: 数据DataFrame
+        feature_name: 特征名称
+        feature_info: 特征信息（从info.json）
+
+    Returns:
+        统计信息字典
+    """
+    if feature_name not in df.columns:
+        print(f"警告: 特征 {feature_name} 不在数据中")
+        return None
+
+    dtype = feature_info.get("dtype")
+
+    # 只处理数值类型
+    if dtype in ["float32", "float64", "int64", "int32", "int16", "int8", "uint8"]:
+        column_data = df[feature_name]
+
+
+文件：utils/dataset_format_transform/final_format_lerobot/libero_dataset/libero_data_transform_for_Sai/batch_convert_libero.py
+#!/usr/bin/env python3
+"""
+批量转换所有LIBERO数据集为LeRobot格式
+
+支持的数据集:
+- libero_10: 10个任务
+- libero_90: 90个任务
+- libero_goal: 10个任务
+- libero_object: 10个任务
+- libero_spatial: 10个任务
+
+使用方式:
+    python batch_convert_libero.py --all
+    python batch_convert_libero.py --all-merge
+    python batch_convert_libero.py --all-merge-exclude libero_90
+    python batch_convert_libero.py --dataset libero_goal
+    python batch_convert_libero.py --dataset libero_goal --output-dir ./my_output
+"""
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+import time
+from datetime import datetime
+from typing import List, Dict, Optional, Tuple
+import json
+import logging
+import numpy as np
+
+# Import functions from libero_to_lerobot for merge conversion
+from libero_to_lerobot import (
+    read_hdf5_structure,
+    extract_demo_data,
+    save_episode_parquet,
+    save_videos,
+    save_metadata,
+)
+from tqdm import tqdm
+
+def run_conversion(input_dir, output_dir, dataset_name):
+    """运行单个数据集的转换"""
+    print("\n" + "=" * 70)
+    print(f"开始转换 {dataset_name.upper()}")
+    print("=" * 70)
+    print(f"输入目录: {input_dir}")
+    print(f"输出目录: {output_dir}")
+
+    start_time = time.time()
+
+    try:
+        cmd = [
+            sys.executable,
+            str(Path(__file__).parent / "libero_to_lerobot.py"),
+            "--input-dir", str(input_dir),
+            "--output-dir", str(output_dir),
+            "--fps", "10",
+            "--chunk-size", "100"
+        ]
+
+        result = subprocess.run(cmd, check=True, capture_output=False)
+        elapsed = time.time() - start_time
+
+        print("\n" + "=" * 70)
+        print(f"✓ {dataset_name.upper()} 转换完成")
+        print(f"耗时: {elapsed:.1f}秒 ({elapsed/60:.1f}分钟)")
+        print("=" * 70)
+
+        return True, elapsed
+
+    except subprocess.CalledProcessError as e:
+        elapsed = time.time() - start_time
+        print(f"\n✗ 转换失败: {e}")
+        return False, elapsed
+
+def run_merge_conversion(
+    datasets: List[str],
+    base_input_dir: Path,
+    output_dir: Path,
+    fps: float = 10.0,
+    chunk_size: int = 100
+) -> Tuple[bool, float]:
+    """
+    合并转换所有数据集到单一输出目录
+
+    Args:
+        datasets: 要转换的数据集列表
+        base_input_dir: 输入数据集的基础目录
+        output_dir: 合并输出目录
+        fps: 视频帧率
+
+文件：utils/pt2safetensors/transfer.py
+# python utils/pt2safetensors/transfer.py \
+#     --input /path/to/model.pt \
+#     --output /path/to/output_dir \
+#     --num_shards 4
+
+import argparse
+import math
+import os
+from collections import OrderedDict
+
+import torch
+from safetensors.torch import save_file
+
+def split_state_dict(state_dict: dict, num_shards: int) -> list[OrderedDict]:
+    keys = list(state_dict.keys())
+    total = len(keys)
+    shard_size = math.ceil(total / num_shards)
+
+    shards = []
+    for i in range(num_shards):
+        start = i * shard_size
+        end = min(start + shard_size, total)
+        shard = OrderedDict()
+        for key in keys[start:end]:
+            shard[key] = state_dict[key]
+        shards.append(shard)
+    return shards
+
+def generate_index(shards: list[OrderedDict], filenames: list[str]) -> dict:
+    weight_map = {}
+    total_size = 0
+    for shard, fname in zip(shards, filenames):
+        for key, tensor in shard.items():
+            weight_map[key] = fname
+            total_size += tensor.numel() * tensor.element_size()
+    return {
+        "metadata": {"total_size": total_size},
+        "weight_map": weight_map,
+    }
+
+def main():
+    parser = argparse.ArgumentParser(description="将 .pt 文件拆分为多个 safetensors 分片")
+    parser.add_argument("--input", type=str, required=True, help="输入 .pt 文件路径")
+    parser.add_argument("--output", type=str, required=True, help="输出目录路径")
+    parser.add_argument("--num_shards", type=int, required=True, help="拆分的分片数量")
+    args = parser.parse_args()
+
+    os.makedirs(args.output, exist_ok=True)
+
+    print(f"正在加载 {args.input} ...")
+    state_dict = torch.load(args.input, map_location="cpu", weights_only=True)
+
+    if isinstance(state_dict, dict) and "state_dict" in state_dict:
+        state_dict = state_dict["state_dict"]
+    elif isinstance(state_dict, dict) and "model" in state_dict:
+        state_dict = state_dict["model"]
+
+    print(f"共 {len(state_dict)} 个张量，拆分为 {args.num_shards} 个分片")
+
+    shards = split_state_dict(state_dict, args.num_shards)
+
+    filenames = []
+    for i, shard in enumerate(shards, start=1):
+        fname = f"model-{i:05d}-of-{args.num_shards:05d}.safetensors"
+        filenames.append(fname)
+        path = os.path.join(args.output, fname)
+        save_file(shard, path)
+        print(f"  已保存 {fname} ({len(shard)} 个张量)")
+
+    import json
+    index = generate_index(shards, filenames)
+    index_path = os.path.join(args.output, "model.safetensors.index.json")
+    with open(index_path, "w") as f:
+        json.dump(index, f, indent=2)
+    print(f"  已保存索引文件 model.safetensors.index.json")
+
+    print("完成!")
+
+if __name__ == "__main__":
+    main()
+
+文件：utils/convert_libero_plus_to_lerobot_v2.py
+#!/usr/bin/env python3
+"""
+将 HuggingFace Datasets 格式的 libero_plus (video+label) 转换为 LeRobot v2 目录格式。
+
+源格式 (/data_disk1/hwl/libero_plus/train):
+    - Arrow 文件, 28694 行
+    - 每行: video (mp4 bytes) + label (0=front, 1=wrist)
+    - 14347 个 episode, 每个有 front + wrist 两个视角
+
+目标格式 (与 austin_buds_dataset_converted_externally_to_rlds 一致):
+    dataset_name/
+    ├── meta/
+    │   ├── info.json
+    │   ├── episodes.jsonl
+    │   ├── tasks.jsonl
+    │   └── stats.json
+    ├── data/
+    │   └── chunk-000/
+    │       ├── episode_000000.parquet
+    │       └── ...
+    └── videos/
+        └── chunk-000/
+            ├── observation.images.front/
+            │   ├── episode_000000.mp4
+            │   └── ...
+            └── observation.images.wrist/
+                ├── episode_000000.mp4
+                └── ...
+
+用法:
+    conda run -n qwen_eagle_hwl python utils/convert_libero_plus_to_lerobot_v2.py \
+        --src /data_disk1/hwl/libero_plus \
+        --dst /data_disk1/hwl/unitree_train_v2_recipe_lerobot/libero_plus
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import numpy as np
+import pyarrow.parquet as pq
+import pyarrow as pa
+
+LABEL_TO_CAMERA = {0: "front", 1: "wrist"}
+CHUNKS_SIZE = 1000
+
+def get_video_frame_count(video_path: str) -> tuple[int, float]:
+    """用 ffprobe 获取视频帧数和 fps。"""
+    cmd = [
+        "ffprobe", "-v", "quiet",
+        "-print_format", "json",
+        "-show_streams",
+        video_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    info = json.loads(result.stdout)
+    stream = info["streams"][0]
+    nb_frames = int(stream["nb_frames"])
+    r_fps_str = stream["r_frame_rate"]  # e.g. "20/1"
+    num, den = map(int, r_fps_str.split("/"))
+    fps = num / den
+    return nb_frames, fps
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="libero_plus -> LeRobot v2")
+    parser.add_argument("--src", type=str, default="/data_disk1/hwl/libero_plus",
+                        help="HuggingFace Datasets 格式的 libero_plus 路径")
+    parser.add_argument("--dst", type=str,
+                        default="/data_disk1/hwl/unitree_train_v2_recipe_lerobot/libero_plus",
+                        help="输出的 LeRobot v2 目录")
+    parser.add_argument("--workers", type=int, default=16,
+                        help="写视频文件的并行 worker 数")
+    parser.add_argument("--task_description", type=str, default="",
+                        help="任务描述文本 (可选)")
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    src_path = Path(args.src)
+    dst_path = Path(args.dst)
+
+    print(f"源路径: {src_path}")
+    print(f"目标路径: {dst_path}")
+
+    # ------------------------------------------------------------------
+
+文件：utils/download/libero_plus.py
+from pathlib import Path
+
+from datasets import load_dataset
+from datasets.exceptions import NonMatchingSplitsSizesError
+
+output_dir = Path("/data_disk1/hwl/libero_plus")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+try:
+    ds = load_dataset("Sylvest/libero_plus_lerobot")
+except NonMatchingSplitsSizesError:
+    # Some Hub datasets ship stale split metadata. Fall back to
+    # disabling split-size verification so the dataset can still load.
+    ds = load_dataset(
+        "Sylvest/libero_plus_lerobot",
+        verification_mode="no_checks",
+    )
+
+ds.save_to_disk(str(output_dir))
+
+
+文件：eval/Sai0_1/libero/Flow_Matching_0/eval_Sai0_1.py
+#!/usr/bin/env python3
+"""
+LIBERO 评估脚本 - 基于 Flow Matching Action Head (Flow_Matching_0)
+
+使用 Sai0_1 模块化结构评估 Flow Matching Action Head 在 LIBERO 环境中的表现。
+Flow_Matching_0 版本使用单层 VLM hidden states。
+
+使用方法:
+    # 基本用法 - LIBERO 环境评估
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.libero.Flow_Matching_0.eval_Sai0_1 \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \
+        --dataset_path /path/to/dataset \
+        --task_suite_name libero_spatial \
+        --vlm_layers 14
+
+    # 多层 VLM (Qwen4B)
+    CUDA_VISIBLE_DEVICES=1 python -m eval.Sai0_1.libero.Flow_Matching_0.eval_Sai0_1 \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --vlm_model_path Qwen/Qwen3-VL-4B-Instruct \
+        --dataset_path /path/to/dataset \
+        --vlm_layers 16 \
+        --vlm_output_dim 2560 \
+        --task_suite_name libero_spatial
+
+    # 使用训练数据测试
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.libero.Flow_Matching_0.eval_Sai0_1 \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --dataset_path /path/to/dataset \
+        --use_training_data \
+        --num_test_samples 100
+
+参数说明:
+    --checkpoint_path: 训练好的 action_head.pt 文件路径
+    --vlm_model_path: VLM 模型路径 (Qwen/Qwen3-VL-2B-Instruct 或 Qwen/Qwen3-VL-4B-Instruct)
+    --dataset_path: 训练数据集路径 (用于加载归一化统计量)
+    --task_suite_name: LIBERO 任务套件名称
+    --vlm_layers: 提取的 VLM 隐藏层 (如 "14")
+    --vlm_output_dim: VLM backbone 输出维度 (Qwen2B=1536, Qwen4B=2560)
+"""
+
+import sys
+import os
+import argparse
+import json
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+import cv2
+import imageio
+import numpy as np
+import torch
+import tqdm
+from PIL import Image
+from transformers.feature_extraction_utils import BatchFeature
+
+# ============================================================================
+# 路径设置
+# ============================================================================
+EVAL_DIR = Path(__file__).resolve().parent
+SAI0_ROOT = EVAL_DIR.parents[3]  # eval/Sai0_1/libero/Flow_Matching_0 -> sai0-vla
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+# 导入 VLM Backbone
+from VLMs.S0_1.backbone import create_vlm_backbone
+
+# 导入 Flow Matching Action Head
+from Action_Heads.Flow_Matching_0.config import get_flowmatching_action_head_config_original
+from Action_Heads.Flow_Matching_0.models.action_head.flow_matching_action_head import (
+    FlowmatchingActionHead, FlowmatchingActionHeadConfig
+)
+
+# LIBERO 环境 - 延迟导入，避免 robosuite 提前初始化 CUDA
+LIBERO_AVAILABLE = False
+benchmark = None
+get_libero_path = None
+OffScreenRenderEnv = None
+
+def _fix_robosuite_log_permission():
+    """修复 robosuite 日志文件权限问题"""
+    import logging
+    robosuite_log = "/tmp/robosuite.log"
+
+    # 检查是否可以写入
+    try:
+        with open(robosuite_log, 'a') as f:
+            pass
+
+文件：eval/Sai0_1/libero/Flow_Matching_1/eval_Sai0_1.py
+#!/usr/bin/env python3
+"""
+LIBERO 评估脚本 - 基于 Flow Matching Action Head (Flow_Matching_1)
+
+使用 Sai0_1 模块化结构评估 Flow Matching Action Head 在 LIBERO 环境中的表现。
+Flow_Matching_1 版本支持多层 VLM hidden states。
+
+使用方法:
+    # 基本用法 - LIBERO 环境评估 (多层 VLM)
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.libero.Flow_Matching_1.eval_Sai0_1 \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \
+        --dataset_path /path/to/dataset \
+        --task_suite_name libero_spatial \
+        --vlm_layers 1,14,28
+
+    # Qwen4B 多层
+    CUDA_VISIBLE_DEVICES=1 python -m eval.Sai0_1.libero.Flow_Matching_1.eval_Sai0_1 \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --vlm_model_path Qwen/Qwen3-VL-4B-Instruct \
+        --dataset_path /path/to/dataset \
+        --vlm_layers 16,17,18 \
+        --vlm_output_dim 2560 \
+        --task_suite_name libero_spatial
+
+    # 使用训练数据测试
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.libero.Flow_Matching_1.eval_Sai0_1 \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --dataset_path /path/to/dataset \
+        --use_training_data \
+        --num_test_samples 100
+
+参数说明:
+    --checkpoint_path: 训练好的 action_head.pt 文件路径
+    --vlm_model_path: VLM 模型路径 (Qwen/Qwen3-VL-2B-Instruct 或 Qwen/Qwen3-VL-4B-Instruct)
+    --dataset_path: 训练数据集路径 (用于加载归一化统计量)
+    --task_suite_name: LIBERO 任务套件名称
+    --vlm_layers: 提取的 VLM 隐藏层 (如 "1,14,28" 或 "16,17,18")
+    --vlm_output_dim: VLM backbone 输出维度 (Qwen2B=2048, Qwen4B=2560)
+"""
+
+import sys
+import os
+import argparse
+import json
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+import cv2
+import imageio
+import numpy as np
+import torch
+import tqdm
+from PIL import Image
+from transformers.feature_extraction_utils import BatchFeature
+
+# ============================================================================
+# 路径设置
+# ============================================================================
+EVAL_DIR = Path(__file__).resolve().parent
+SAI0_ROOT = EVAL_DIR.parents[3]  # eval/Sai0_1/libero/Flow_Matching_1 -> sai0-vla
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+# 导入 VLM Backbone
+from VLMs.S0_1.backbone import create_vlm_backbone
+
+# 导入 Flow Matching Action Head (Flow_Matching_1 版本)
+from Action_Heads.Flow_Matching_1.config import get_flowmatching_action_head_config
+from Action_Heads.Flow_Matching_1.models.action_head.flow_matching_action_head import (
+    FlowmatchingActionHead, FlowmatchingActionHeadConfig
+)
+
+# LIBERO 环境 - 延迟导入，避免 robosuite 提前初始化 CUDA
+LIBERO_AVAILABLE = False
+benchmark = None
+get_libero_path = None
+OffScreenRenderEnv = None
+
+def _fix_robosuite_log_permission():
+    """修复 robosuite 日志文件权限问题"""
+    import logging
+    robosuite_log = "/tmp/robosuite.log"
+
+    try:
+        with open(robosuite_log, 'a') as f:
+            pass
+        return
+
+文件：eval/Sai0_1/libero/OFT1_0/eval_Sai0_1.py
+#!/usr/bin/env python3
+"""
+LIBERO 评估脚本 - 基于 Sai0_1 模块化架构
+
+使用 Sai0_1 模块化结构评估 OFT Action Head 在 LIBERO 环境中的表现。
+
+使用方法:
+    # 基本用法 - LIBERO 环境评估
+    CUDA_VISIBLE_DEVICES=0 python eval_Sai0_1.py \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \
+        --dataset_path /path/to/dataset \
+        --task_suite_name libero_spatial \
+        --vlm_layers 14
+
+    # 多层 VLM (Qwen4B)
+    CUDA_VISIBLE_DEVICES=1 python eval_Sai0_1.py \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --vlm_model_path Qwen/Qwen3-VL-4B-Instruct \
+        --dataset_path /path/to/dataset \
+        --vlm_layers 16,17,18 \
+        --vlm_output_dim 2560 \
+        --task_suite_name libero_spatial
+
+    # 使用训练数据测试
+    CUDA_VISIBLE_DEVICES=0 python eval_Sai0_1.py \
+        --checkpoint_path ./checkpoints/step_5000/action_head.pt \
+        --dataset_path /path/to/dataset \
+        --use_training_data \
+        --num_test_samples 100
+
+参数说明:
+    --checkpoint_path: 训练好的 action_head.pt 文件路径
+    --vlm_model_path: VLM 模型路径 (Qwen/Qwen3-VL-2B-Instruct 或 Qwen/Qwen3-VL-4B-Instruct)
+    --dataset_path: 训练数据集路径 (用于加载归一化统计量)
+    --task_suite_name: LIBERO 任务套件名称
+    --vlm_layers: 提取的 VLM 隐藏层 (如 "14" 或 "16,17,18")
+    --vlm_output_dim: VLM backbone 输出维度 (Qwen2B=1536, Qwen4B=2560)
+"""
+
+import sys
+import os
+import argparse
+import json
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+import cv2
+import imageio
+import numpy as np
+import torch
+import tqdm
+from PIL import Image
+
+# ============================================================================
+# 路径设置
+# ============================================================================
+EVAL_DIR = Path(__file__).resolve().parent
+SAI0_ROOT = EVAL_DIR.parents[3]  # eval/Sai0_1/libero/OFT1_0 -> sai0-vla
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+# 导入 Sai0_1 模块
+from VLAs.Sai0_1 import (
+    Sai0Config, VLMConfig, ActionHeadConfig, DataConfig, TrainingConfig,
+    Sai0Inference,
+    load_normalization_stats, quat2axisangle_torch, convert_state_quat_to_axisangle,
+    MinMaxNormalizer,
+)
+
+# 导入 VLM Backbone
+from VLMs.S0_1.backbone import create_vlm_backbone
+
+# LIBERO 环境 - 延迟导入，避免 robosuite 提前初始化 CUDA
+LIBERO_AVAILABLE = False
+benchmark = None
+get_libero_path = None
+OffScreenRenderEnv = None
+
+def _fix_robosuite_log_permission():
+    """修复 robosuite 日志文件权限问题"""
+    import logging
+    robosuite_log = "/tmp/robosuite.log"
+
+    # 检查是否可以写入
+    try:
+        with open(robosuite_log, 'a') as f:
+            pass
+
+文件：eval/Sai0_1/libero/ParaCAT/eval_Sai0_1.py
+#!/usr/bin/env python3
+"""
+LIBERO 评估脚本 - 基于 ParaCAT Action Head
+
+使用 Sai0_1 模块化结构评估 ParaCAT Action Head 在 LIBERO 环境中的表现。
+ParaCAT 使用离散化动作预测 (3分类: 后退/不动/前进)。
+
+使用方法:
+    # 基本用法 - LIBERO 环境评估 (使用 Pons)
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.libero.ParaCAT.eval_Sai0_1 \
+        --paracat_checkpoint ./checkpoints/step_5000/paracat.pt \
+        --pons_checkpoint ./checkpoints/step_5000/pons.pt \
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \
+        --dataset_path /path/to/dataset \
+        --task_suite_name libero_spatial \
+        --vlm_layers 14
+
+    # 不使用 Pons，直接使用 VLM hidden states
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.libero.ParaCAT.eval_Sai0_1 \
+        --paracat_checkpoint ./checkpoints/step_5000/paracat.pt \
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \
+        --dataset_path /path/to/dataset \
+        --task_suite_name libero_spatial
+
+    # 使用训练数据测试
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.libero.ParaCAT.eval_Sai0_1 \
+        --paracat_checkpoint ./checkpoints/step_5000/paracat.pt \
+        --dataset_path /path/to/dataset \
+        --use_training_data \
+        --num_test_samples 100
+
+参数说明:
+    --paracat_checkpoint: 训练好的 paracat.pt 文件路径
+    --pons_checkpoint: 预训练的 pons.pt 文件路径 (可选)
+    --vlm_model_path: VLM 模型路径
+    --dataset_path: 训练数据集路径 (用于加载归一化统计量)
+    --task_suite_name: LIBERO 任务套件名称
+    --vlm_layers: 提取的 VLM 隐藏层
+    --undiscrete_columns: 需要反离散化的列索引
+    --undiscrete_deltas: 对应列的 delta 值
+"""
+
+import sys
+import os
+import argparse
+import json
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+import cv2
+import imageio
+import numpy as np
+import torch
+import tqdm
+from PIL import Image
+
+# ============================================================================
+# 路径设置
+# ============================================================================
+EVAL_DIR = Path(__file__).resolve().parent
+SAI0_ROOT = EVAL_DIR.parents[3]  # eval/Sai0_1/libero/ParaCAT -> sai0-vla
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+# 导入 VLM Backbone
+from VLMs.S0_1.backbone import create_vlm_backbone
+
+# 导入 ParaCAT Action Head
+from Action_Heads.ParaCAT.model.action_head.paracat_action_head import (
+    ParaCATActionHead, create_paracat_action_head
+)
+
+# 导入 Pons Adapter
+from Adapter.Pons.pons_adapter import PonsAdapter, create_pons_adapter
+
+# 导入离散化/反离散化工具函数
+from utils.discrete import undiscrete_constrain_delta
+
+# LIBERO 环境 - 延迟导入，避免 robosuite 提前初始化 CUDA
+LIBERO_AVAILABLE = False
+benchmark = None
+get_libero_path = None
+OffScreenRenderEnv = None
+
+def _fix_robosuite_log_permission():
+    """修复 robosuite 日志文件权限问题"""
+    import logging
+    robosuite_log = "/tmp/robosuite.log"
+
+文件：eval/Sai0_1/tele/ParaCAT/eval_cumulative_error.py
+#!/usr/bin/env python3
+"""
+遥操作数据 ParaCAT 评估脚本 - 累计误差绘图
+
+使用 ParaCAT Action Head 对遥操作数据进行评估，
+绘制 GT action delta 和预测 delta 的累计误差对比图。
+
+使用方法:
+    CUDA_VISIBLE_DEVICES=0 python -m eval.Sai0_1.tele.ParaCAT.eval_cumulative_error \
+        --paracat_checkpoint ./checkpoints/paracat.pt \
+        --pons_checkpoint ./checkpoints/pons.pt \
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \
+        --dataset_path /path/to/lerobot_dataset \
+        --episode_idx 0 \
+        --chunk_size 16 \
+        --output_dir ./eval_plots
+
+功能:
+    1. 加载指定 episode 的数据 (action, images, task_description)
+    2. 实时通过 VLM backbone 提取 hidden states
+    3. 按 chunk 进行 ParaCAT 预测
+    4. 计算累计位置 (GT 和预测)
+    5. 绘制每个 action 维度的对比图和汇总图
+"""
+
+import sys
+import os
+import argparse
+import json
+import math
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+import cv2
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+import matplotlib
+matplotlib.use('Agg')  # 非交互式后端
+import matplotlib.pyplot as plt
+from PIL import Image
+from tqdm import tqdm
+
+# ============================================================================
+# 路径设置
+# ============================================================================
+EVAL_DIR = Path(__file__).resolve().parent
+SAI0_ROOT = EVAL_DIR.parents[3]  # eval/Sai0_1/tele/ParaCAT -> sai0-vla
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+# 导入 VLM Backbone
+from VLMs.S0_1.backbone import create_vlm_backbone
+
+# 导入 ParaCAT Action Head
+from Action_Heads.ParaCAT.model.action_head.paracat_action_head import (
+    ParaCATActionHead, create_paracat_action_head
+)
+
+# 导入 Pons Adapter
+from Adapter.Pons.pons_adapter import PonsAdapter, create_pons_adapter
+
+# 导入离散化/反离散化工具函数
+from utils.discrete import undiscrete_constrain_delta
+
+# ============================================================================
+# 常量定义
+# ============================================================================
+DATE = time.strftime("%Y_%m_%d")
+DATE_TIME = time.strftime("%Y_%m_%d-%H_%M_%S")
+
+# ============================================================================
+# ObservationStateMapper 类 (从训练代码复制)
+# ============================================================================
+
+class ObservationStateMapper(nn.Module):
+    """
+    将 observation_state 按列归一化并映射到 VLM 隐藏空间
+
+    支持两种归一化方式:
+    1. minmax: 从 stats.json 读取 min/max 进行 [0, 1] 归一化
+    2. axisangle: 对已转换的轴角值 (范围 [-pi, pi]) 进行 [0, 1] 归一化
+
+    数据流:
+        state (batch, state_dim)
+        -> 按列归一化
+        -> MLP (state_dim -> hidden_dim)
+
+文件：eval/libero/Flow_Matching_0/eval_benchmark.py
+#!/usr/bin/env python3
+"""Evaluate a Flow Matching 0 action head inside the LIBERO simulator."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import random
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Tuple
+
+# ---------------------------------------------------------------------------
+# Resolve LIBERO project root so we can import libero modules without installing.
+# ---------------------------------------------------------------------------
+EVAL_DIR = Path(__file__).resolve().parent
+LIBERO_ROOT = EVAL_DIR.parents[4]  # /home/.../LIBERO
+SAI0_ROOT = EVAL_DIR.parents[2]    # /home/.../LIBERO/custom_hwl/sai0-vla
+
+# Debug: uncomment to verify paths
+# print(f"EVAL_DIR: {EVAL_DIR}")
+# print(f"LIBERO_ROOT: {LIBERO_ROOT}")
+# print(f"SAI0_ROOT: {SAI0_ROOT}")
+
+if str(LIBERO_ROOT) not in sys.path:
+    sys.path.insert(0, str(LIBERO_ROOT))
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+import numpy as np
+import torch
+from PIL import Image, ImageOps
+import imageio
+
+# Fix for PyTorch 2.6+ security change: allow numpy arrays in torch.load
+# This is needed because LIBERO's init_states files contain numpy arrays
+try:
+    # Add numpy types required for unpickling
+    torch.serialization.add_safe_globals([
+        np.core.multiarray._reconstruct,
+        np.ndarray,
+        np.dtype,
+        np.dtypes.Float64DType,
+    ])
+except (AttributeError, TypeError):
+    pass  # Older numpy versions may not have these
+
+# Alternative: monkey-patch torch.load to use weights_only=False for LIBERO files
+_original_torch_load = torch.load
+def _patched_torch_load(f, *args, **kwargs):
+    if 'weights_only' not in kwargs:
+        kwargs['weights_only'] = False
+    return _original_torch_load(f, *args, **kwargs)
+torch.load = _patched_torch_load
+
+from libero.libero import get_libero_path
+from libero.libero.benchmark import get_benchmark
+from libero.libero.envs import OffScreenRenderEnv, SubprocVectorEnv
+from libero.libero.utils.time_utils import Timer
+
+from VLAs.Sai0 import End2EndGr00tPipeline  # noqa: E402 (path prepared above)
+
+@dataclass
+class TimingAccumulator:
+    vlm: float = 0.0
+    head: float = 0.0
+    total: float = 0.0
+    comms: float = 0.0
+    calls: int = 0
+
+    def add(self, timing: Dict[str, float]) -> None:
+        if not timing:
+            return
+        self.vlm += timing.get("vlm_time", 0.0)
+        self.head += timing.get("action_head_time", 0.0)
+        self.total += timing.get("total_time", 0.0)
+        self.comms += timing.get("communication_time", 0.0)
+        self.calls += 1
+
+    def summary(self) -> Dict[str, float]:
+        if self.calls == 0:
+            return {}
+        return {
+            "calls": self.calls,
+            "vlm_time_avg": self.vlm / self.calls,
+            "action_head_time_avg": self.head / self.calls,
+            "total_time_avg": self.total / self.calls,
+            "communication_time_avg": self.comms / self.calls,
+
+文件：eval/libero/Flow_Matching_1/eval_benchmark.py
+#!/usr/bin/env python3
+"""Evaluate a Flow Matching 1 action head inside the LIBERO simulator."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import random
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import numpy as np
+import torch
+from PIL import Image, ImageOps
+import imageio
+
+from libero.libero import get_libero_path
+from libero.libero.benchmark import get_benchmark
+from libero.libero.envs import OffScreenRenderEnv, SubprocVectorEnv
+from libero.libero.utils.time_utils import Timer
+
+# ---------------------------------------------------------------------------
+# Resolve project roots so we can import Sai0-VLA modules without installing.
+# ---------------------------------------------------------------------------
+EVAL_DIR = Path(__file__).resolve().parent
+SAI0_ROOT = EVAL_DIR.parents[2]  # .../custom_hwl/sai0-vla
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+from VLAs.Sai0 import End2EndGr00tPipeline  # noqa: E402 (path prepared above)
+
+@dataclass
+class TimingAccumulator:
+    vlm: float = 0.0
+    head: float = 0.0
+    total: float = 0.0
+    comms: float = 0.0
+    calls: int = 0
+
+    def add(self, timing: Dict[str, float]) -> None:
+        if not timing:
+            return
+        self.vlm += timing.get("vlm_time", 0.0)
+        self.head += timing.get("action_head_time", 0.0)
+        self.total += timing.get("total_time", 0.0)
+        self.comms += timing.get("communication_time", 0.0)
+        self.calls += 1
+
+    def summary(self) -> Dict[str, float]:
+        if self.calls == 0:
+            return {}
+        return {
+            "calls": self.calls,
+            "vlm_time_avg": self.vlm / self.calls,
+            "action_head_time_avg": self.head / self.calls,
+            "total_time_avg": self.total / self.calls,
+            "communication_time_avg": self.comms / self.calls,
+        }
+
+def parse_csv_list(raw: str) -> List[str]:
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+def parse_csv_int_list(raw: str) -> List[int]:
+    return [int(item.strip()) for item in raw.split(",") if item.strip()]
+
+def ensure_uint8(image: np.ndarray) -> np.ndarray:
+    if image.dtype == np.uint8:
+        return image
+    if image.max() <= 1.0:
+        scaled = (image * 255.0).clip(0, 255)
+    else:
+        scaled = image.clip(0, 255)
+    return scaled.astype(np.uint8)
+
+def extract_images(obs_entry: Dict[str, np.ndarray], camera_keys: Sequence[str]) -> List[Image.Image]:
+    images: List[Image.Image] = []
+    for key in camera_keys:
+        if key not in obs_entry:
+            raise KeyError(f"Observation is missing camera key '{key}'")
+        rgb = ensure_uint8(np.asarray(obs_entry[key]))
+        img = Image.fromarray(np.ascontiguousarray(rgb))
+        # Mirror vertically to stay consistent with training data orientation.
+        images.append(ImageOps.flip(img))
+    return images
+
+def extract_state(obs_entry: Dict[str, np.ndarray], state_keys: Sequence[str]) -> np.ndarray:
+    chunks: List[np.ndarray] = []
+
+文件：eval/libero/OFT1_0/eval_not_sai0_pipeline_qwen.py
+#!/usr/bin/env python3
+"""
+LIBERO 评估脚本 - 基于自定义训练的 OFT Action Head (Qwen VLM 版本)
+
+该脚本与 train_for_libero_qwen2b_multigpu.py 训练方式对齐，使用相同的:
+- 数据处理流程 (四元数→轴角转换)
+- 归一化方式 (min_max 到 [-1, 1])
+- 模型配置 (VLM2OFTPipeline + L1RegressionActionHead)
+- VLM backbone (Qwen/Qwen3-VL-2B-Instruct 或 Qwen/Qwen3-VL-4B-Instruct)
+
+使用方法:
+    # 基本使用 - LIBERO 环境评估 (注意: 需要在命令前设置 CUDA_VISIBLE_DEVICES)
+    CUDA_VISIBLE_DEVICES=0 python eval_new.py \\
+        --checkpoint_path ./experiments/checkpoints/step_5000/action_head.pt \\
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \\
+        --data_path /path/to/dataset \\
+        --task_suite_name libero_spatial \\
+        --vlm_layers 14
+
+    # 使用训练数据测试
+    CUDA_VISIBLE_DEVICES=0 python eval_new.py \\
+        --checkpoint_path ./experiments/checkpoints/step_5000/action_head.pt \\
+        --vlm_model_path Qwen/Qwen3-VL-2B-Instruct \\
+        --data_path /path/to/dataset \\
+        --use_training_data \\
+        --num_test_samples 100
+
+    # 多层 VLM (与训练配置一致)
+    CUDA_VISIBLE_DEVICES=1 python eval_new.py \\
+        --checkpoint_path ./experiments/checkpoints/step_5000/action_head.pt \\
+        --vlm_model_path Qwen/Qwen3-VL-4B-Instruct \\
+        --data_path /path/to/dataset \\
+        --vlm_layers 16,17,18 \\
+        --vlm_output_dim 2560 \\
+        --task_suite_name libero_spatial
+
+参数说明:
+    --checkpoint_path: 训练好的 action_head.pt 文件路径
+    --vlm_model_path: VLM 模型路径 (Qwen/Qwen3-VL-2B-Instruct 或 Qwen/Qwen3-VL-4B-Instruct)
+    --data_path: 训练数据集路径 (用于加载归一化统计量)
+    --task_suite_name: LIBERO 任务套件名称
+    --vlm_layers: 提取的 VLM 隐藏层 (可以是单层如 "14" 或多层如 "16,17,18")
+    --vlm_output_dim: VLM backbone 输出维度 (Qwen2B=1536, Qwen4B=2560)
+
+注意: 使用 CUDA_VISIBLE_DEVICES=X 在命令前设置要使用的 GPU，--device 参数应该设为 cuda:0
+"""
+
+import sys
+import os
+import argparse
+import json
+import math
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Optional, Dict, Any, Tuple
+
+import cv2
+import imageio
+import numpy as np
+import torch
+import torch.nn as nn
+import tqdm
+from PIL import Image
+
+# ============================================================================
+# 路径设置
+# ============================================================================
+EVAL_DIR = Path(__file__).resolve().parent
+SAI0_ROOT = EVAL_DIR.parents[2]  # .../sai0-vla
+if str(SAI0_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAI0_ROOT))
+
+# 添加 OFT1_0 路径
+OFT_DIR = SAI0_ROOT / "Action_Heads" / "OFT1_0"
+if str(OFT_DIR) not in sys.path:
+    sys.path.insert(0, str(OFT_DIR))
+
+# 添加 utils 路径
+UTILS_DIR = SAI0_ROOT / "utils"
+if str(UTILS_DIR) not in sys.path:
+    sys.path.insert(0, str(UTILS_DIR))
+
+# 导入 OFT 模型
+from vlm2oft_pipeline import VLM2OFTPipeline, create_vlm2oft_pipeline
+from constants import (
+    ACTION_DIM, NUM_ACTIONS_CHUNK, PROPRIO_DIM,
+    LLM_OUTPUT_DIM_MLP_INPUT_DIM, NUM_VLM_HIDDEN_LAYERS
+)
+
+
+文件：eval/libero/N1_5/eval_n1_5.py
+#!/usr/bin/env python3
+"""
+Evaluate GR00T N1.5 model on LIBERO benchmarks.
+
+This script provides a standalone evaluation pipeline for fine-tuned N1.5 models
+on LIBERO simulation tasks. It supports:
+- Loading fine-tuned checkpoints from local path
+- Multiple LIBERO benchmark suites (libero_spatial, libero_object, libero_goal, etc.)
+- Batch evaluation with configurable rollouts
+- Video recording of rollouts
+- JSON result logging
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import random
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Tuple, Any
+
+import imageio
+import numpy as np
+import torch
+
+# ---------------------------------------------------------------------------
+# Resolve paths
+# ---------------------------------------------------------------------------
+EVAL_DIR = Path(__file__).resolve().parent
+LIBERO_ROOT = EVAL_DIR.parents[4]  # /home/.../LIBERO
+GROOT_ROOT = LIBERO_ROOT / "Isaac-GR00T"
+
+if str(LIBERO_ROOT) not in sys.path:
+    sys.path.insert(0, str(LIBERO_ROOT))
+if str(GROOT_ROOT) not in sys.path:
+    sys.path.insert(0, str(GROOT_ROOT))
+
+# Fix for PyTorch 2.6+ security change
+try:
+    torch.serialization.add_safe_globals([
+        np.core.multiarray._reconstruct,
+        np.ndarray,
+        np.dtype,
+        np.dtypes.Float64DType,
+    ])
+except (AttributeError, TypeError):
+    pass
+
+_original_torch_load = torch.load
+def _patched_torch_load(f, *args, **kwargs):
+    if 'weights_only' not in kwargs:
+        kwargs['weights_only'] = False
+    return _original_torch_load(f, *args, **kwargs)
+torch.load = _patched_torch_load
+
+# LIBERO imports
+from libero.libero import get_libero_path
+from libero.libero.benchmark import get_benchmark
+from libero.libero.envs import OffScreenRenderEnv
+
+# GR00T imports
+from gr00t.model.policy import Gr00tPolicy
+from gr00t.data.transform.base import ComposedModalityTransform
+from gr00t.data.transform.concat import ConcatTransform
+from gr00t.data.transform.state_action import StateActionToTensor, StateActionTransform
+from gr00t.data.transform.video import VideoToTensor, VideoCrop, VideoResize, VideoToNumpy
+from gr00t.model.transforms import GR00TTransform
+from gr00t.experiment.data_config import BaseDataConfig
+from gr00t.data.dataset import ModalityConfig
+
+# ===========================================================================
+# Libero Data Config (matching train preprocessing)
+# ===========================================================================
+
+class LiberoDataConfig(BaseDataConfig):
+    """Data configuration for LIBERO environment compatible with N1.5."""
+
+    video_keys = [
+        "video.image",
+        "video.wrist_image",
+    ]
+    state_keys = [
+        "state.x",
+        "state.y",
+        "state.z",
+
+文件：tools/calc_discrete_error.py
+"""
+计算离散化累计误差
+
+给定 parquet 文件，计算原始累计曲线和离散化累计曲线之间的积分面积差值。
+支持多个 chunk size，最后画出柱状图对比。
+
+使用示例:
+python tools/calc_discrete_error.py \
+    --parquet_path /home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_10/libero_lerobot_10_sys0_eagle_-1/data/chunk-000/episode_000000.parquet \
+    --chunk_sizes 4 8 16 25 32 \
+    --deltas 0.9 0.8 0.9 0.085 0.15 0.3 \
+    --columns 0 1 2 3 4 5 \
+    --output_dir ./action_plots
+"""
+
+import os
+import sys
+import argparse
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.discrete import discrete_chunk_calculus, undiscrete_chunk_calculus
+
+def load_parquet_actions(parquet_path: str) -> np.ndarray:
+    """从parquet文件加载action数据"""
+    df = pd.read_parquet(parquet_path)
+
+    if 'action' in df.columns:
+        actions = np.array(df['action'].tolist())
+    else:
+        raise ValueError(f"未找到'action'列，可用列: {df.columns.tolist()}")
+
+    return actions
+
+def calc_chunk_error(
+    col_data: np.ndarray,
+    delta: float,
+    chunk_size: int,
+    beta: float = 0.6,
+    alpha: float = 0.4,
+) -> tuple:
+    """
+    计算单列数据的离散化误差
+
+    对于每个 chunk：
+    1. 计算原始累计曲线（从 chunk 起点开始的 cumsum）
+    2. 计算离散化累计曲线（从 chunk 起点开始的 cumsum）
+    3. 计算两条曲线的积分面积差（绝对值之和）
+
+    Args:
+        col_data: 1D array，单列 action 数据
+        delta: 离散化步长
+        chunk_size: chunk 大小
+        beta: 趋势项权重
+        alpha: 趋势平滑系数
+
+    Returns:
+        chunk_errors: 每个 chunk 的误差列表
+        total_error: 所有 chunk 误差的累计和
+    """
+    num_samples = len(col_data)
+
+    chunk_errors = []
+
+    for start_idx in range(0, num_samples, chunk_size):
+        end_idx = min(start_idx + chunk_size, num_samples)
+        chunk_data = col_data[start_idx:end_idx]
+
+        # 原始累计曲线（从0开始）
+        original_cumsum = np.cumsum(chunk_data)
+
+        # 离散化
+        discrete_data = discrete_chunk_calculus(
+            chunk_data, delta, beta=beta, alpha=alpha
+        )
+
+        # 反离散化
+        undiscrete_data = undiscrete_chunk_calculus(discrete_data, delta)
+
+        # 离散化累计曲线（从0开始）
+        discrete_cumsum = np.cumsum(undiscrete_data)
+
+        # 计算两条曲线的积分面积差（使用绝对差值的和作为近似）
+        # 这相当于两条曲线之间围成的面积
+
+文件：tools/calc_discrete_error_batch.py
+"""
+批量计算离散化累计误差
+
+给定数据文件夹，统计所有 parquet 文件的误差累计和。
+支持多个 chunk size，画出柱状图和平均值折线图。
+
+文件夹结构示例:
+data/
+  chunk-000/
+    episode_000000.parquet
+    episode_000001.parquet
+    ...
+  chunk-001/
+    episode_000100.parquet
+    ...
+
+使用示例:
+python tools/calc_discrete_error_batch.py \
+    --data_dir /path/to/data \
+    --chunk_sizes 4 8 16 32 64 \
+    --deltas 0.1 0.1 0.1 0.1 0.1 0.1 \
+    --columns 0 1 2 3 4 5 \
+    --output_dir ./action_plots
+
+python tools/calc_discrete_error_batch.py \
+    --data_dir /home/dev/文档/huangwenlong/dataset/libero_github_convert_for_Sai0-VLA_libero_10/libero_lerobot_10_sys0_eagle_-1/data \
+    --chunk_sizes 4 8 16 32 64 \
+    --deltas 0.9 0.8 0.9 0.085 0.15 0.3 \
+    --columns 0 1 2 3 4 5 \
+    --output_dir ./action_plots \
+    --max_file 100
+"""
+
+import os
+import sys
+import argparse
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from pathlib import Path
+from tqdm import tqdm
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+

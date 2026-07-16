@@ -1,0 +1,110 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3498db', 'primaryTextColor': '#fff', 'primaryBorderColor': '#2980b9', 'lineColor': '#95a5a6', 'secondaryColor': '#2ecc71', 'tertiaryColor': '#9b59b6'}}}%%
+
+flowchart TB
+    subgraph VLM["🧠 VLM Model (e.g., Qwen2.5-3B)"]
+        direction TB
+        VLM_IN["Image + Text Input"]
+        VLM_PROC["VLM Processing"]
+        VLM_IN --> VLM_PROC
+    end
+    
+    subgraph HIDDEN["📦 VLM Hidden States"]
+        direction LR
+        L0["Layer 0<br/>(B, S, D)"]
+        L1["Layer 1<br/>(B, S, D)"]
+        L2["Layer 2<br/>(B, S, D)"]
+        LN["...<br/>Layer N"]
+    end
+    
+    VLM_PROC --> L0
+    VLM_PROC --> L1
+    VLM_PROC --> L2
+    VLM_PROC --> LN
+    
+    MERGE["🔗 Concatenate<br/>(B, S×N, D)"]
+    L0 & L1 & L2 & LN --> MERGE
+    
+    subgraph PONS["🌉 PONS ADAPTER"]
+        direction TB
+        PONS_Q["Learnable Query Tokens<br/>(1, Q_len, D) + PosEnc"]
+        PONS_CA["Cross-Attention Block × N<br/>Q=Query, K=VLM, V=VLM"]
+        PONS_FFN["LayerNorm + FFN + Residual"]
+        PONS_OUT["Pons Output<br/>(B, Q_len, D)"]
+        
+        PONS_Q --> PONS_CA
+        PONS_CA --> PONS_FFN
+        PONS_FFN --> PONS_OUT
+    end
+    
+    MERGE --> PONS_CA
+    
+    subgraph PARACAT["🎯 PARACAT ACTION HEAD"]
+        direction TB
+        
+        subgraph STAGE1["Stage 1: Cross-Attention"]
+            PC_Q["Action Query Tokens<br/>(1, chunk×action_dim, D) + PosEnc"]
+            PC_CA["Cross-Attention<br/>Q=Action Query, K=Pons, V=Pons"]
+            PC_Q --> PC_CA
+        end
+        
+        subgraph STAGE2["Stage 2: Self-Attention"]
+            PC_SA["Self-Attention Blocks × M<br/>(No Mask, Full Attention)"]
+            PC_NORM["LayerNorm + FFN + Residual"]
+            PC_SA --> PC_NORM
+        end
+        
+        subgraph STAGE3["Stage 3: MLP Prediction"]
+            PC_MLP1["MLP: D → 1024 (GELU)"]
+            PC_MLP2["MLP: 1024 → 1024 (GELU)"]
+            PC_MLPF["MLP: 1024 → 3 (No Activation)"]
+            PC_MLP1 --> PC_MLP2 --> PC_MLPF
+        end
+        
+        PC_CA --> PC_SA
+        PC_NORM --> PC_MLP1
+        
+        RESHAPE["Reshape<br/>(B, C×A, 3) → (B, C, A, 3)"]
+        PC_MLPF --> RESHAPE
+    end
+    
+    PONS_OUT --> PC_CA
+    
+    subgraph OUTPUT["📤 Output Actions"]
+        direction TB
+        LOGITS["Action Logits<br/>(B, chunk_size, action_dim, 3)"]
+        
+        subgraph CLASSES["3-Class Discrete Actions"]
+            direction LR
+            C0["Class 0<br/>后退 (-1)"]
+            C1["Class 1<br/>不动 (0)"]
+            C2["Class 2<br/>前进 (+1)"]
+        end
+        
+        LOGITS --> CLASSES
+    end
+    
+    RESHAPE --> LOGITS
+    
+    subgraph INFERENCE["🔄 Inference Pipeline"]
+        direction LR
+        ARGMAX["argmax<br/>{0,1,2}"]
+        CONVERT["−1<br/>{-1,0,+1}"]
+        SCALE["× δ<br/>Continuous"]
+        ARGMAX --> CONVERT --> SCALE
+    end
+    
+    CLASSES --> ARGMAX
+    
+    %% Styling
+    classDef vlmStyle fill:#3498db,stroke:#2980b9,stroke-width:2px
+    classDef hiddenStyle fill:#9b59b6,stroke:#8e44ad,stroke-width:2px
+    classDef ponsStyle fill:#2ecc71,stroke:#27ae60,stroke-width:2px
+    classDef paracatStyle fill:#e74c3c,stroke:#c0392b,stroke-width:2px
+    classDef outputStyle fill:#f39c12,stroke:#d68910,stroke-width:2px
+    
+    class VLM_IN,VLM_PROC vlmStyle
+    class L0,L1,L2,LN,MERGE hiddenStyle
+    class PONS_Q,PONS_CA,PONS_FFN,PONS_OUT ponsStyle
+    class PC_Q,PC_CA,PC_SA,PC_NORM,PC_MLP1,PC_MLP2,PC_MLPF,RESHAPE paracatStyle
+    class LOGITS,C0,C1,C2,ARGMAX,CONVERT,SCALE outputStyle
+

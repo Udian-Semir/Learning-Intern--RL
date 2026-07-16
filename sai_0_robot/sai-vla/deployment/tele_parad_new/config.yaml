@@ -1,0 +1,160 @@
+# ============================================================================
+# OFT 遥操作推理服务配置 (兼容 robot_control 客户端)
+#
+# 此服务可直接被以下客户端调用:
+#   robot_control_no_hand_status_joint_roi_new_bgr2rgb.py
+#
+# 启动方式:
+#   python server.py --config config.yaml
+#   python server.py --config config.yaml --offline
+# ============================================================================
+
+# 服务器配置
+host: "0.0.0.0"
+port: 5556
+
+# 设备配置
+device: "cuda:0"
+
+# 日志配置
+verbose: true
+
+# --------------------------------------------------------------------------
+# 图像预处理
+# --------------------------------------------------------------------------
+# 注意: robot_control 客户端已在 get_obs() 中将 BGR 转为 RGB，
+#       因此 bgr_to_rgb 应为 false，避免二次转换。
+image_preprocess:
+  resize: [224, 224]
+  flip_horizontal: false
+  flip_vertical: false
+  rotate_180: false
+  bgr_to_rgb: false    # robot_control 已做 BGR→RGB，此处不再转换
+
+# --------------------------------------------------------------------------
+# VLM Backbone
+# --------------------------------------------------------------------------
+vlm:
+  # 模型类型: qwen3_vl, eagle2_5_vl, cosmos_reason_2b_vl
+  type: "qwen3_vl"
+
+  # 模型路径 (根据实际情况修改)
+  model_path: "/home/dev/.cache/huggingface/hub/models--Qwen--Qwen3-VL-2B-Instruct/snapshots/89644892e4d85e24eaac8bacfd4f463576704203"
+
+  # 提取层 (Eagle: [-1], Qwen2B: [14], Qwen4B: [16])
+  layers: [14]
+
+  flip_images: false
+  content_order: "images_first"
+  lowercase_instruction: true
+  add_generation_prompt: true
+  prompt_template: "simple"
+
+# Hidden Dim (Eagle: 2048, Qwen2B: 2048, Qwen4B: 2560)
+hidden_dim: 2048
+
+# --------------------------------------------------------------------------
+# OFT Pipeline
+# --------------------------------------------------------------------------
+oft:
+  # Checkpoint 路径 (必填，根据实际情况修改)
+  checkpoint: "/home/dev/文档/huangwenlong/sai_vla_checkpoint/p6000_bsz1000*1*8_tb4_100000steps_layer14_20260403_wpdatasets196_joint_datasets196_joint_chunk1000_60000_bsz1000_USE_SHARED_CACHE_true_CACHE_VLM_STATES_false_USE_AMP_true_webdataset_false/checkpoints/step_100000/action_head.pt"
+
+  num_transformer_blocks: 4
+  num_attention_heads: 8
+  num_vlm_layers: 1
+  action_head_hidden_dim: 4096
+
+# --------------------------------------------------------------------------
+# 动作 / State 维度
+# --------------------------------------------------------------------------
+# 模型输出的 action 维度
+chunk_size: 1000
+action_dim: 8
+
+# 实际执行的步数 (从 chunk_size 预测中截取前 execute_horizon 步返回给客户端)
+# 设为 null 或不填则返回全部 chunk_size 步
+execute_horizon: 8
+
+# Proprio 维度 (送入 OFT 的 state 维度，需与训练时 PROPRIO_DIM 一致)
+proprio_dim: 8
+
+# 是否使用 proprio (对应训练时 USE_PROPRIO_PROJECTOR)
+# false 时强制传全零向量给 OFT，忽略 client 发来的 state
+use_proprio: false
+
+# --------------------------------------------------------------------------
+# 输出动作后处理
+# --------------------------------------------------------------------------
+action_postprocess:
+
+  # Action 反归一化: 将 [-1,1] 还原为物理量纲
+  action_denormalize:
+    enabled: true
+    stats_file: "/home/dev/文档/huangwenlong/vla-data-pipeline/alignment_data_post_process2lerobot/datasets/dataset196_rightarm/meta/stats.json"
+    stats_key: "action"
+
+  # Gripper 二值化
+  gripper_binarize:
+    enabled: true
+    columns: [7]
+    threshold: 0.5
+    bce_mode: false
+
+  # Aggregate Sum:
+  #   将 chunk 内多步 delta action 求和为 1 步动作，机械臂只执行这一步总位移。
+  #   - enabled: true 启用
+  #   - horizon: 参与求和的步数，null 或不填则对整个 chunk_size 求和
+  #     例: horizon=16 表示只对前 16 步求和; horizon=null 表示对全部 1000 步求和
+  aggregate_sum:
+    enabled: true
+    horizon: 8
+
+  # 零填充: 将 7 维 action 扩展为 robot_control 期望的 16 维
+  #
+  # 原始 7 维: [a0, a1, a2, a3, a4, a5, a6]
+  #   → prepend 7 zeros (左臂 7 维占位):
+  #     [0,0,0,0,0,0,0, a0, a1, a2, a3, a4, a5, a6]
+  #   → insert 1 zero before last (左手占位):
+  #     [0,0,0,0,0,0,0, a0, a1, a2, a3, a4, a5, 0, a6]
+  #   = 16 维: [left_j(7)=0, right_j(6), left_hand=0, right_hand]
+  #
+  # 注意: 请根据你的模型输出维度和 robot_control 期望的 16 维格式调整!
+  padding_zeros:
+    enabled: true
+    prepend_count: 7
+    insert_before_last: 1
+
+# --------------------------------------------------------------------------
+# ROI 提取 (从主图像中裁剪右手区域作为第二张图输入 VLM)
+# --------------------------------------------------------------------------
+# 当 enabled=true 且 client 只发送 1 张图 + world_point 时，
+# server 会自动从 world_point 投影到像素坐标，裁剪 ROI 并作为第 2 张图输入模型。
+#
+# 相机内外参文件已复制到 preprocessing/config/ 下，路径为默认值可不填。
+# 如果不需要 ROI，设为 enabled: false 即可。
+roi:
+  enabled: true
+
+  # 相机内参文件 (默认: preprocessing/config/intrinsics.ini)
+  # intrinsics_path: "preprocessing/config/intrinsics.ini"
+
+  # 相机外参文件 (默认: preprocessing/config/solvepnp_params_from_csv.json)
+  # extrinsics_path: "preprocessing/config/solvepnp_params_from_csv.json"
+
+  # ROI 配置文件 (包含 margin 细分参数)
+  # config_path: "preprocessing/config/config.json"
+
+  # 内参 section 名
+  intrinsic_section: "ColorIntrinsic"
+
+  # 右手/左手 (右手时左右 margin 互换)
+  hand_side: "right"
+
+  # ROI 裁剪后的 resize 尺寸
+  target_size: 224
+
+# --------------------------------------------------------------------------
+# 默认任务指令
+# --------------------------------------------------------------------------
+default_instruction: "use the right robotic arm to pick up this plastic bottle."
