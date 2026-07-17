@@ -1,0 +1,3 @@
+[submodule "pi_0_robot/openpi"]
+	path = pi_0_robot/openpi
+	url = git@github.com:Physical-Intelligence/openpi.git
