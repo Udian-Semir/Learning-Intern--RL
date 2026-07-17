@@ -12,13 +12,7 @@
 https://rail.eecs.berkeley.edu/deeprlcourse/resources/
 
 ## Reading ACT Paper
-1.加入正则化
-2.为什么太短会带来积累误差
-3.最大化演示动作的对数似然，这是什么
-4.用 BERT 风格的 Transformer 编码器 CVAE
-5.ResNet18原理
-```
-┌──────────────────────────────────────────────────────────┐
+1.加入正则化  ┌──────────────────────────────────────────────────────────┐
 │                     ACT 中的数据流                        │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
@@ -37,7 +31,7 @@ https://rail.eecs.berkeley.edu/deeprlcourse/resources/
 │                  ▼ + z token (1个, 512维)                 │
 │              ┌──────────────────────┐                    │
 │              │ Transformer 编码器②   │                    │
-│              │ (4层 self-attention)  │                    │
+│              │ (4层 self-attention)  │                    │   
 │              │ token间互相通信        │                    │
 │              └──────────┬───────────┘                    │
 │                         │ 1202 tokens (增强后)            │
