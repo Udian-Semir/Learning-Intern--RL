@@ -1,0 +1,115 @@
+# 机器人坐标系说明
+
+本文档说明 `urdf/half_finish.urdf` 中主要使用的机器人基坐标系和相机坐标系。
+
+## 机器人基坐标系
+
+机器人基坐标系为：
+
+```text
+robot_base_link
+```
+
+该坐标系定义在 `waist_joint` 的原点位置，用于表示机器人上半身/腰部机构的基准坐标系。
+
+URDF 中对应定义为：
+
+```xml
+<link name="robot_base_link"/>
+<joint name="robot_base_joint" type="fixed">
+  <origin xyz="0 0 0" rpy="-0.785398 -1.56967 -0.785398"/>
+  <parent link="waist"/>
+  <child link="robot_base_link"/>
+</joint>
+```
+
+说明：
+
+- `robot_base_link` 的原点与 `waist_joint` 的原点重合。
+- `robot_base_link` 挂在 `waist` 下面，因此会随着 `waist_joint` 一起旋转。
+- 在腰关节零位时，`robot_base_link` 的坐标轴方向与世界坐标系保持一致。
+- 建议在控制、规划或标定中，将 `robot_base_link` 作为机器人本体的基坐标系。
+
+## 头部相机坐标系
+
+头部相机坐标系为：
+
+```text
+head_camera_frame
+```
+
+该坐标系定义在头部相机模型 `head_camera` 下，用于表示头部相机的实际坐标系。
+
+URDF 中对应定义为：
+
+```xml
+<link name="head_camera_frame"/>
+<joint name="head_camera_frame_joint" type="fixed">
+  <origin xyz="0.00006 -0.025 0.0259" rpy="0 0 1.5708"/>
+  <parent link="head_camera"/>
+  <child link="head_camera_frame"/>
+</joint>
+```
+
+说明：
+
+- `head_camera_frame` 是 `head_camera` 的子坐标系。
+- 其相对 `head_camera` 的位置偏移为 `xyz="0.00006 -0.025 0.0259"`。
+- 其相对 `head_camera` 的旋转为 `rpy="0 0 1.5708"`。
+- 建议在头部相机外参、视觉感知、点云或图像坐标转换中，使用 `head_camera_frame` 作为头部相机坐标系。
+
+## 身体相机坐标系
+
+身体上的相机坐标系为：
+
+```text
+camera_link_frame
+```
+
+该坐标系定义在身体前部相机模型 `camera_Link` 下，用于表示身体相机的实际坐标系。
+
+URDF 中对应定义为：
+
+```xml
+<link name="camera_link_frame"/>
+<joint name="camera_link_frame_joint" type="fixed">
+  <origin xyz="0.02503 0.02375 0.02015" rpy="-1.5708 0 -1.5708"/>
+  <parent link="camera_Link"/>
+  <child link="camera_link_frame"/>
+</joint>
+```
+
+说明：
+
+- `camera_link_frame` 是 `camera_Link` 的子坐标系。
+- 其相对 `camera_Link` 的位置偏移为 `xyz="0.02503 0.02375 0.02015"`。
+- 其相对 `camera_Link` 的旋转为 `rpy="-1.5708 0 -1.5708"`。
+- 建议在身体相机外参、视觉感知、点云或图像坐标转换中，使用 `camera_link_frame` 作为身体相机坐标系。
+
+## 坐标系关系
+
+主要 TF 关系如下：
+
+```text
+world
+└── base_link
+    └── lift_1
+        └── lift_2
+            └── waist
+                ├── robot_base_link
+                └── torso_1
+                    ├── camera_Link
+                    │   └── camera_link_frame
+                    └── head_1
+                        └── head_2
+                            └── head_camera
+                                └── head_camera_frame
+```
+
+其中：
+
+- `world` 是世界坐标系。
+- `base_link` 是机器人底盘坐标系。
+- `robot_base_link` 是机器人基坐标系。
+- `head_camera_frame` 是头部相机坐标系。
+- `camera_link_frame` 是身体相机坐标系。

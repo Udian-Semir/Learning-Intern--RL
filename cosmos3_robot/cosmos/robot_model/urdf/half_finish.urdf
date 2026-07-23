@@ -1,0 +1,870 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="dual_ar5_column_base">
+  <material name="orange">
+    <color rgba="0.5 0.0 0.5 1.0" />
+  </material>
+  <material name="chassis_silver">
+    <color rgba="0.78 0.80 0.82 1.0" />
+  </material>
+  <material name="body_color">
+    <color rgba="0.50 0.60 0.10 1.0" />
+  </material>
+  <material name="metal_dark">
+    <color rgba="0.35 0.38 0.36 0.7" />
+  </material>
+  <material name="mat_black">
+    <color rgba="0.05 0.05 0.06 1.0" />
+  </material>
+  <material name="accent_blue">
+    <color rgba="0.06 0.24 0.80 1.0" />
+  </material>
+  <material name="white">
+    <color rgba="1.0 1.0 1.0 1.0" />
+  </material>
+  <material name="red">
+    <color rgba="1 0.0 0.0 1.0" />
+  </material>
+  <link name="world" />
+  <joint name="fixed" type="fixed">
+    <parent link="world" />
+    <child link="basement_base_link" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+  <link name="basement_base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="30.0" />
+      <inertia ixx="5.0" ixy="0.0" ixz="0.0" iyy="5.0" iyz="0.0" izz="2.0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/new_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <material name="mat_black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/new_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="camera_base_fixed" type="fixed">
+    <parent link="world" />
+    <child link="camera_base_link" />
+    <origin xyz="0.033 0.14 1.475" rpy="0.0 -0.7853981634 1.570796" />
+  </joint>
+  <link name="camera_base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="30.0" />
+      <inertia ixx="5.0" ixy="0.0" ixz="0.0" iyy="5.0" iyz="0.0" izz="2.0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 1.5709633" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/Camera_base_40d.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <material name="mat_black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 1.5709633" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/Camera_base_40d.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="camera_fixed" type="fixed">
+    <parent link="camera_base_link" />
+    <child link="camera_link" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>
+  <link name="camera_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="30.0" />
+      <inertia ixx="5.0" ixy="0.0" ixz="0.0" iyy="5.0" iyz="0.0" izz="2.0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/Camera_435.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <material name="white" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/Camera_435.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="camera_mount_to_color_joint" type="fixed">
+    <parent link="camera_link" />
+    <child link="camera_color_frame" />
+    <origin xyz="0.02020 0.05766 0.03601" rpy="0 0 -1.5707963267948966" />
+  </joint>
+  <link name="camera_color_frame">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.002" />
+      </geometry>
+      <material name="red" />
+    </visual>
+  </link>
+  <joint name="camera_2_base_fixed" type="fixed">
+    <parent link="basement_base_link" />
+    <child link="camera_2_base_link" />
+    <origin xyz="0 0.05 1.475" rpy="0 0 0" />
+  </joint>
+  <link name="camera_2_base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/camera_2_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <material name="camera_base_color">
+        <color rgba="0.15 0.15 0.15 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/camera_2_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="camera_2_fixed" type="fixed">
+    <parent link="camera_2_base_link" />
+    <child link="camera_2_link" />
+    <origin xyz="0 0 0.061" rpy="-1.5707963267948966 0 0" />
+  </joint>
+  <link name="camera_2_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/camera_2.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <material name="camera_color">
+        <color rgba="0.8 0.8 0.8 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://robot_model/meshes/others_stl/camera_2.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="camera_2_color_frame_fixed" type="fixed">
+    <parent link="camera_2_link" />
+    <child link="camera_2_color_frame" />
+    <origin xyz="-0.025558 -0.014744 0.015728" rpy="0 0 0" />
+  </joint>
+  <link name="camera_2_color_frame" />
+  <joint name="left_fixed" type="fixed">
+    <parent link="basement_base_link" />
+    <child link="AR5-5_07L_base" />
+    <origin xyz="-0.10645 0 1.40" rpy="3.141592653589793 1.5707963267948966 0" />
+  </joint>
+  <link name="AR5-5_07L_base">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <material name="white" />
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_joint_1" type="revolute">
+    <parent link="AR5-5_07L_base" />
+    <child link="AR5-5_07L_link1" />
+    <limit effort="108" lower="-3.1067" upper="3.1067" velocity="3.490658503988659" />
+    <axis xyz="0 0 1" />
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07L_link1">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link1.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="2.66" />
+      <inertia ixx="0.00484214" ixy="0.00000117" ixz="-0.00000044" iyy="0.00444297" iyz="-0.00000074" izz="0.00427071" />
+      <origin rpy="0 0 0" xyz="1.6e-05 -0.0006979999999999999 0.168185" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link1.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_joint_2" type="revolute">
+    <parent link="AR5-5_07L_link1" />
+    <child link="AR5-5_07L_link2" />
+    <limit effort="108" lower="-2.0944" upper="2.0944" velocity="3.490658503988659" />
+    <axis xyz="0 1 0" />
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.1745" />
+  </joint>
+  <link name="AR5-5_07L_link2">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link2.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0.0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="2.3" />
+      <inertia ixx="0.01155422" ixy="0.00000028" ixz="-0.00000103" iyy="0.00995119" iyz="0.00083831" izz="0.00437076" />
+      <origin rpy="0 0 0" xyz="4.4999999999999996e-05 -0.002985 0.102801" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link2.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_joint_3" type="revolute">
+    <parent link="AR5-5_07L_link2" />
+    <child link="AR5-5_07L_link3" />
+    <limit effort="66" lower="-3.1067" upper="3.1067" velocity="4.71238898038469" />
+    <axis xyz="0 0 1" />
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.314" />
+  </joint>
+  <link name="AR5-5_07L_link3">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link3.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="1.8" />
+      <inertia ixx="0.00478231" ixy="0.00001317" ixz="0.00033105" iyy="0.00432575" iyz="0.00002132" izz="0.00254969" />
+      <origin rpy="0 0 0" xyz="0.0073 -0.001371 -0.01502" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link3.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_joint_4" type="revolute">
+    <parent link="AR5-5_07L_link3" />
+    <child link="AR5-5_07L_link4" />
+    <limit effort="66" lower="-1.0472" upper="2.5307" velocity="5.235987755982989" />
+    <axis xyz="0 1 0" />
+    <origin rpy="0 0 0" xyz="0.0105 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07L_link4">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link4.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="1.13" />
+      <inertia ixx="0.00352152" ixy="-0.00002411" ixz="-0.00015046" iyy="0.00266275" iyz="0.00025447" izz="0.00186915" />
+      <origin rpy="0 0 0" xyz="-0.007816 -0.002536 0.066782" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link4.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_joint_5" type="revolute">
+    <parent link="AR5-5_07L_link4" />
+    <child link="AR5-5_07L_link5" />
+    <limit effort="19" lower="-3.1067" upper="3.1067" velocity="4.1887902047863905" />
+    <axis xyz="0 0 1" />
+    <origin rpy="0 0 0" xyz="-0.0105 0.0 0.26" />
+  </joint>
+  <link name="AR5-5_07L_link5">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link5.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="1.19" />
+      <inertia ixx="0.00238316" ixy="0.00001280" ixz="0.00001311" iyy="0.00195453" iyz="0.00001458" izz="0.00149979" />
+      <origin rpy="0 0 0" xyz="0.00023400000000000002 0.002477 -0.08120000000000001" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link5.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_joint_6" type="revolute">
+    <parent link="AR5-5_07L_link5" />
+    <child link="AR5-5_07L_link6" />
+    <limit effort="19" lower="-1.0472" upper="1.0472" velocity="4.1887902047863905" />
+    <axis xyz="0 1 0" />
+    <origin rpy="0.0 0.0 0" xyz="0.0 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07L_link6">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link6.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="0.82" />
+      <inertia ixx="0.00060715" ixy="-0.00000829" ixz="0.00000078" iyy="0.00065671" iyz="0.00000017" izz="0.00066165" />
+      <origin rpy="0 0 0" xyz="0.0072039999999999995 0.0007149999999999999 -4e-05" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link6.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_joint_7" type="revolute">
+    <parent link="AR5-5_07L_link6" />
+    <child link="AR5-5_07L_link7" />
+    <limit effort="19" lower="-1.0472" upper="1.0472" velocity="4.1887902047863905" />
+    <axis xyz="1 0 0" />
+    <origin rpy="0.0 0.0 0" xyz="0.0 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07L_link7">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link7.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="0.32" />
+      <inertia ixx="0.00043581" ixy="0.00000007" ixz="0.00001201" iyy="0.00067064" iyz="0.00000188" izz="0.00041740" />
+      <origin rpy="0 0 0" xyz="-0.002337 0.000307 0.051645" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_L/AR5-5_07L_link7.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07L_tcp_joint" type="fixed">
+    <parent link="AR5-5_07L_link7"/>
+    <child link="AR5-5_07L_tcp"/>
+    <!-- 四螺丝孔 STL 对齐 (adapter Z 转 180°) -->
+    <origin rpy="0 0 0" xyz="0.001668 0.000142 0.097"/>
+  </joint>
+  <link name="AR5-5_07L_tcp">
+    <inertial>
+      <mass value="0.0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+  <joint name="AR5-5_07L_gripper_adapter_joint" type="fixed">
+    <parent link="AR5-5_07L_tcp"/>
+    <child link="AR5-5_07L_gripper_adapter"/>
+    <!-- 绕 Z 转 180° 对齐；沿 -Z 插入 3.0mm -->
+    <origin rpy="0 0 3.141592653589793" xyz="0.0 0.0 -0.003"/>
+  </joint>
+  <link name="AR5-5_07L_gripper_adapter">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.15"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+  </link>
+  <joint name="AR5-5_07L_grip_joint" type="fixed">
+    <parent link="AR5-5_07L_gripper_adapter"/>
+    <child link="AR5-5_07L_grip"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+  </joint>
+   <link name="AR5-5_07L_grip">
+    <inertial>
+      <origin xyz="0 0 0.065" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="5e-4" ixy="0" ixz="0" iyy="5e-4" iyz="0" izz="5e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.014033 0.065949 0.024424" rpy="0 0 4.71238898038469"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_body.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0.014033 0.065949 0.024424" rpy="0 0 4.71238898038469"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_body.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="AR5-5_07L_finger1_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <!-- 旧导出坐标系(Y 向)对齐到新 body 坐标系(Z 向)的指位 -->
+      <origin xyz="0.014855 -0.009099 0.040890" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0.014855 -0.009099 0.040890" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <visual>
+      <!-- finger1 下侧：绕 Z 转 180° -->
+      <origin xyz="0.01088099 0.00123435 0.07373734" rpy="0 0 3.141592653589793"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="mat_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0.01088099 0.00123435 0.07373734" rpy="0 0 3.141592653589793"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="AR5-5_07L_gripper_joint" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="AR5-5_07L_grip"/>
+    <child link="AR5-5_07L_finger1_link"/>
+    <axis xyz="1 0 0"/>
+    <!-- 0=全开；上限 9.2mm：夹具底面接触（裸指行程 13mm，加夹具后有效行程缩短） -->
+    <limit lower="0" upper="0.0092" effort="50" velocity="1"/>
+  </joint>
+
+  <link name="AR5-5_07L_finger2_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <!-- 旧导出坐标系(Y 向)对齐到新 body 坐标系(Z 向)的指位 -->
+      <origin xyz="0.012758 -0.009078 0.040949" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0.012758 -0.009078 0.040949" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <visual>
+      <!-- finger2 上侧：不旋转 -->
+      <origin xyz="-0.01076273 0.00165301 0.07379634" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="mat_black"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.01076273 0.00165301 0.07379634" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="AR5-5_07L_gripper_mimic_joint" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="AR5-5_07L_grip"/>
+    <child link="AR5-5_07L_finger2_link"/>
+    <axis xyz="-1 0 0"/>
+    <!-- 0=全开；上限 9.2mm：夹具底面接触（裸指行程 13mm，加夹具后有效行程缩短） -->
+    <limit lower="0" upper="0.0092" effort="50" velocity="1"/>
+    <mimic joint="AR5-5_07L_gripper_joint" multiplier="1" offset="0"/>
+  </joint>
+  
+  <joint name="right_fixed" type="fixed">
+    <parent link="basement_base_link" />
+    <child link="AR5-5_07R_base" />
+    <origin xyz="0.10645 0 1.40" rpy="0 1.5707963267948966 0" />
+  </joint>
+  <link name="AR5-5_07R_base">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <material name="white" />
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_base.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_joint_1" type="revolute">
+    <parent link="AR5-5_07R_base" />
+    <child link="AR5-5_07R_link1" />
+    <limit effort="108" lower="-3.1067" upper="3.1067" velocity="3.490658503988659" />
+    <axis xyz="0 0 1" />
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07R_link1">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link1.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="2.66" />
+      <inertia ixx="0.00484214" ixy="0.00000117" ixz="-0.00000044" iyy="0.00444297" iyz="-0.00000074" izz="0.00427071" />
+      <origin rpy="0 0 0" xyz="1.6e-05 -0.0006979999999999999 0.168185" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link1.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_joint_2" type="revolute">
+    <parent link="AR5-5_07R_link1" />
+    <child link="AR5-5_07R_link2" />
+    <limit effort="108" lower="-2.0944" upper="2.0944" velocity="3.490658503988659" />
+    <axis xyz="0 1 0" />
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.1745" />
+  </joint>
+  <link name="AR5-5_07R_link2">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link2.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0.0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="2.3" />
+      <inertia ixx="0.01155422" ixy="0.00000028" ixz="-0.00000103" iyy="0.00995119" iyz="0.00083831" izz="0.00437076" />
+      <origin rpy="0 0 0" xyz="4.4999999999999996e-05 -0.002985 0.102801" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link2.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_joint_3" type="revolute">
+    <parent link="AR5-5_07R_link2" />
+    <child link="AR5-5_07R_link3" />
+    <limit effort="66" lower="-3.1067" upper="3.1067" velocity="4.71238898038469" />
+    <axis xyz="0 0 1" />
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.314" />
+  </joint>
+  <link name="AR5-5_07R_link3">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link3.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="1.8" />
+      <inertia ixx="0.00478231" ixy="0.00001317" ixz="0.00033105" iyy="0.00432575" iyz="0.00002132" izz="0.00254969" />
+      <origin rpy="0 0 0" xyz="0.0073 -0.001371 -0.01502" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link3.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_joint_4" type="revolute">
+    <parent link="AR5-5_07R_link3" />
+    <child link="AR5-5_07R_link4" />
+    <limit effort="66" lower="-1.0472" upper="2.5307" velocity="5.235987755982989" />
+    <axis xyz="0 1 0" />
+    <origin rpy="0 0 0" xyz="0.0105 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07R_link4">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link4.stl" scale=".001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="1.13" />
+      <inertia ixx="0.00352152" ixy="-0.00002411" ixz="-0.00015046" iyy="0.00266275" iyz="0.00025447" izz="0.00186915" />
+      <origin rpy="0 0 0" xyz="-0.007816 -0.002536 0.066782" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link4.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_joint_5" type="revolute">
+    <parent link="AR5-5_07R_link4" />
+    <child link="AR5-5_07R_link5" />
+    <limit effort="19" lower="-3.1067" upper="3.1067" velocity="4.1887902047863905" />
+    <axis xyz="0 0 1" />
+    <origin rpy="0 0 0" xyz="-0.0105 0.0 0.26" />
+  </joint>
+  <link name="AR5-5_07R_link5">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link5.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="1.19" />
+      <inertia ixx="0.00239004" ixy="-0.00000866" ixz="0.00001606" iyy="0.00196096" iyz="-0.00001370" izz="0.00150238" />
+      <origin rpy="0 0 0" xyz="0.00022600000000000002 -0.002462 -0.081161" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link5.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_joint_6" type="revolute">
+    <parent link="AR5-5_07R_link5" />
+    <child link="AR5-5_07R_link6" />
+    <limit effort="19" lower="-1.0472" upper="1.0472" velocity="4.1887902047863905" />
+    <axis xyz="0 1 0" />
+    <origin rpy="0.0 0.0 0" xyz="0.0 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07R_link6">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link6.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="0.82" />
+      <inertia ixx="0.00060720" ixy="0.00000824" ixz="-0.00000087" iyy="0.00066149" iyz="0.00000017" izz="0.00066643" />
+      <origin rpy="0 0 0" xyz="0.0070940000000000005 -0.000714 4.2000000000000004e-05" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link6.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_joint_7" type="revolute">
+    <parent link="AR5-5_07R_link6" />
+    <child link="AR5-5_07R_link7" />
+    <limit effort="19" lower="-1.0472" upper="1.0472" velocity="4.1887902047863905" />
+    <axis xyz="1 0 0" />
+    <origin rpy="0.0 0.0 0" xyz="0.0 0.0 0.0" />
+  </joint>
+  <link name="AR5-5_07R_link7">
+    <visual>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link7.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <material name="white" />
+    </visual>
+    <inertial>
+      <mass value="0.32" />
+      <inertia ixx="0.00043649" ixy="0.00000037" ixz="0.00001247" iyy="0.00067127" iyz="0.00000047" izz="0.00041742" />
+      <origin rpy="0 0 0" xyz="-0.002337 6e-06 0.051713999999999996" />
+    </inertial>
+    <collision>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/AR5_P_R/AR5-5_07R_link7.stl" scale="0.001 0.001 0.001" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+    </collision>
+  </link>
+  <joint name="AR5-5_07R_tcp_joint" type="fixed">
+    <parent link="AR5-5_07R_link7"/>
+    <child link="AR5-5_07R_tcp"/>
+    <!-- 四螺丝孔 STL 对齐 (右臂已验证) -->
+    <origin rpy="0 0 0" xyz="0.001802 -0.000099 0.097"/>
+  </joint>
+  <link name="AR5-5_07R_tcp">
+    <inertial>
+      <mass value="0.0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+  <joint name="AR5-5_07R_gripper_adapter_joint" type="fixed">
+    <parent link="AR5-5_07R_tcp"/>
+    <child link="AR5-5_07R_gripper_adapter"/>
+    <!-- 右臂四孔方位：Z 转 180°；沿 -Z 插入 3.0mm -->
+    <origin rpy="0 0 3.141592653589793" xyz="0.0 0.0 -0.003"/>
+  </joint>
+  <link name="AR5-5_07R_gripper_adapter">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.15"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+  </link>
+  <joint name="AR5-5_07R_grip_joint" type="fixed">
+    <parent link="AR5-5_07R_gripper_adapter"/>
+    <child link="AR5-5_07R_grip"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+  </joint>
+   <link name="AR5-5_07R_grip">
+    <inertial>
+      <origin xyz="0 0 0.065" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="5e-4" ixy="0" ixz="0" iyy="5e-4" iyz="0" izz="5e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.014033 0.065949 0.024424" rpy="0 0 4.71238898038469"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_body.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0.014033 0.065949 0.024424" rpy="0 0 4.71238898038469"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_body.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="finger1_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <!-- 旧导出坐标系(Y 向)对齐到新 body 坐标系(Z 向)的指位 -->
+      <origin xyz="0.014855 -0.009099 0.040890" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0.014855 -0.009099 0.040890" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <visual>
+      <!-- finger1 下侧：绕 Z 转 180° -->
+      <origin xyz="0.01088099 0.00123435 0.07373734" rpy="0 0 3.141592653589793"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="mat_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0.01088099 0.00123435 0.07373734" rpy="0 0 3.141592653589793"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="AR5-5_07R_gripper_joint" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="AR5-5_07R_grip"/>
+    <child link="finger1_link"/>
+    <axis xyz="1 0 0"/>
+    <!-- 0=全开；上限 9.2mm：夹具底面接触（裸指行程 13mm，加夹具后有效行程缩短） -->
+    <limit lower="0" upper="0.0092" effort="50" velocity="1"/>
+  </joint>
+
+  <link name="finger2_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+    <visual>
+      <!-- 旧导出坐标系(Y 向)对齐到新 body 坐标系(Z 向)的指位 -->
+      <origin xyz="0.012758 -0.009078 0.040949" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0.012758 -0.009078 0.040949" rpy="1.5707963267948966 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_finger2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <visual>
+      <!-- finger2 上侧：不旋转 -->
+      <origin xyz="-0.01076273 0.00165301 0.07379634" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="mat_black"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.01076273 0.00165301 0.07379634" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/gripper_stl/pgea_50_26_grip.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="AR5-5_07R_gripper_mimic_joint" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="AR5-5_07R_grip"/>
+    <child link="finger2_link"/>
+    <axis xyz="-1 0 0"/>
+    <!-- 0=全开；上限 9.2mm：夹具底面接触（裸指行程 13mm，加夹具后有效行程缩短） -->
+    <limit lower="0" upper="0.0092" effort="50" velocity="1"/>
+    <mimic joint="AR5-5_07R_gripper_joint" multiplier="1" offset="0"/>
+  </joint>
+</robot>
+  
+
