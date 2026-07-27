@@ -58,12 +58,18 @@
   </joint>
   <link name="camera_base_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://robot_model/meshes/others_stl/Camera_base_40d.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_model/meshes/722胸向前海康工业摄像头架子.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="mat_black"/>
     </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/722胸向前海康工业摄像头架子.STL" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="camera_fixed" type="fixed">
     <parent link="camera_base_link"/>
@@ -72,12 +78,18 @@
   </joint>
   <link name="camera_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://robot_model/meshes/others_stl/Camera_435.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_model/meshes/MV-CU013-A0GMGC.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="white"/>
     </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_model/meshes/MV-CU013-A0GMGC.STL" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
   </link>
   <!-- This model uses +X as the forward direction for all task frames. -->
   <joint name="camera_mount_to_color_joint" type="fixed">
@@ -322,12 +334,18 @@
   </joint>
   <link name="left_wrist_camera_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966"/>
+      <origin xyz="0.0038 -0.009 0" rpy="1.5707963267948966 0 1.5707963267948966"/>
       <geometry>
-        <mesh filename="package://robot_model/meshes/others_stl/Camera_435.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_model/meshes/others_stl/D405.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="white"/>
     </visual>
+    <collision>
+      <origin xyz="-0.0078 -0.009 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.023 0.042 0.042"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="left_wrist_camera_color_fixed" type="fixed">
     <parent link="left_wrist_camera_link"/>
@@ -1080,12 +1098,18 @@
   </joint>
   <link name="right_wrist_camera_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966"/>
+      <origin xyz="0.0038 -0.009 0" rpy="1.5707963267948966 0 1.5707963267948966"/>
       <geometry>
-        <mesh filename="package://robot_model/meshes/others_stl/Camera_435.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_model/meshes/others_stl/D405.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="white"/>
     </visual>
+    <collision>
+      <origin xyz="-0.0078 -0.009 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.023 0.042 0.042"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="right_wrist_camera_color_fixed" type="fixed">
     <parent link="right_wrist_camera_link"/>
@@ -1128,7 +1152,7 @@
       </geometry>
     </collision>
   </link>
-  <link name="rh6_right_fz11_Link">
+  <link name="rh6_right_fy11_Link">
     <inertial>
       <origin xyz="0.00679002520654505 -1.28183186065556E-07 0.00921783143572007" rpy="0 0 0"/>
       <mass value="0.0122865280263998"/>
@@ -1150,14 +1174,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz11" type="revolute">
+  <joint name="rh6_right_fy11" type="revolute">
     <origin xyz="0.0135 0.022 0.0398" rpy="0 0 1.5708"/>
     <parent link="rh6_right_base_link"/>
-    <child link="rh6_right_fz11_Link"/>
+    <child link="rh6_right_fy11_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="2.356" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz12_Link">
+  <link name="rh6_right_fy12_Link">
     <inertial>
       <origin xyz="0.0171306597723995 0.00371896000224788 -4.99658958874605E-07" rpy="0 0 0"/>
       <mass value="0.0125497959072737"/>
@@ -1179,14 +1203,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz12" type="revolute">
+  <joint name="rh6_right_fy12" type="revolute">
     <origin xyz="0.0105 0 0.0107" rpy="1.5708 0 0"/>
-    <parent link="rh6_right_fz11_Link"/>
-    <child link="rh6_right_fz12_Link"/>
+    <parent link="rh6_right_fy11_Link"/>
+    <child link="rh6_right_fy12_Link"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0.698" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz13_Link">
+  <link name="rh6_right_fy13_Link">
     <inertial>
       <origin xyz="0.015845249321244 0.00619315314516696 5.25376853488524E-06" rpy="0 0 0"/>
       <mass value="0.00766845638651249"/>
@@ -1208,14 +1232,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz13" type="revolute">
+  <joint name="rh6_right_fy13" type="revolute">
     <origin xyz="0.040457 0.011223 0" rpy="0 0 0"/>
-    <parent link="rh6_right_fz12_Link"/>
-    <child link="rh6_right_fz13_Link"/>
+    <parent link="rh6_right_fy12_Link"/>
+    <child link="rh6_right_fy13_Link"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="1.169" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz14_Link">
+  <link name="rh6_right_fy14_Link">
     <inertial>
       <origin xyz="6.84221826485754E-06 -0.00329677647236757 -0.0165004874842345" rpy="0 0 0"/>
       <mass value="0.00378673281389124"/>
@@ -1237,14 +1261,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz14" type="revolute">
+  <joint name="rh6_right_fy14" type="revolute">
     <origin xyz="0.036284 0.0268 0" rpy="-0.36834 1.5708 0"/>
-    <parent link="rh6_right_fz13_Link"/>
-    <child link="rh6_right_fz14_Link"/>
+    <parent link="rh6_right_fy13_Link"/>
+    <child link="rh6_right_fy14_Link"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz21_Link">
+  <link name="rh6_right_fy21_Link">
     <inertial>
       <origin xyz="0.0183100453576791 0.00110404248642637 1.4314615770783E-06" rpy="0 0 0"/>
       <mass value="0.0100639225371382"/>
@@ -1266,14 +1290,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz21" type="revolute">
+  <joint name="rh6_right_fy21" type="revolute">
     <origin xyz="-0.0035 0.029833 0.11095" rpy="0 -1.4923 1.5708"/>
     <parent link="rh6_right_base_link"/>
-    <child link="rh6_right_fz21_Link"/>
+    <child link="rh6_right_fy21_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.518" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz22_Link">
+  <link name="rh6_right_fy22_Link">
     <inertial>
       <origin xyz="0.0162670548054254 0.000328335996538476 2.60886696606955E-07" rpy="0 0 0"/>
       <mass value="0.00358605495739092"/>
@@ -1295,14 +1319,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz22" type="revolute">
+  <joint name="rh6_right_fy22" type="revolute">
     <origin xyz="0.0419 0.001 0" rpy="0 0 0"/>
-    <parent link="rh6_right_fz21_Link"/>
-    <child link="rh6_right_fz22_Link"/>
+    <parent link="rh6_right_fy21_Link"/>
+    <child link="rh6_right_fy22_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.623" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz23_Link">
+  <link name="rh6_right_fy23_Link">
     <inertial>
       <origin xyz="-5.03450954461582E-06 0.0035802558028295 -0.0177331035964679" rpy="0 0 0"/>
       <mass value="0.00260327905787072"/>
@@ -1324,14 +1348,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz23" type="revolute">
+  <joint name="rh6_right_fy23" type="revolute">
     <origin xyz="0.043692 -0.011217 0" rpy="-1.5708 1.5695 -1.5543"/>
-    <parent link="rh6_right_fz22_Link"/>
-    <child link="rh6_right_fz23_Link"/>
+    <parent link="rh6_right_fy22_Link"/>
+    <child link="rh6_right_fy23_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz31_Link">
+  <link name="rh6_right_fy31_Link">
     <inertial>
       <origin xyz="0.0233371897488126 0.000590481232768836 1.05810883203883E-06" rpy="0 0 0"/>
       <mass value="0.00829865569529675"/>
@@ -1353,14 +1377,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz31" type="revolute">
+  <joint name="rh6_right_fy31" type="revolute">
     <origin xyz="-0.0035 0.009945 0.112" rpy="0 -1.5446 1.5708"/>
     <parent link="rh6_right_base_link"/>
-    <child link="rh6_right_fz31_Link"/>
+    <child link="rh6_right_fy31_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.571" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz32_Link">
+  <link name="rh6_right_fy32_Link">
     <inertial>
       <origin xyz="0.0162682170798479 0.000256347166125992 3.06763353261075E-07" rpy="0 0 0"/>
       <mass value="0.00358603535605245"/>
@@ -1382,14 +1406,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz32" type="revolute">
+  <joint name="rh6_right_fy32" type="revolute">
     <origin xyz="0.0519 0.001 0" rpy="0 0 0"/>
-    <parent link="rh6_right_fz31_Link"/>
-    <child link="rh6_right_fz32_Link"/>
+    <parent link="rh6_right_fy31_Link"/>
+    <child link="rh6_right_fy32_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.641" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz33_Link">
+  <link name="rh6_right_fy33_Link">
     <inertial>
       <origin xyz="-1.39419368525018E-06 0.0035802607719615 -0.0177330927084453" rpy="0 0 0"/>
       <mass value="0.00260328811165374"/>
@@ -1411,14 +1435,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz33" type="revolute">
+  <joint name="rh6_right_fy33" type="revolute">
     <origin xyz="0.043641 -0.01141 0" rpy="-1.5708 1.5705 -1.5587"/>
-    <parent link="rh6_right_fz32_Link"/>
-    <child link="rh6_right_fz33_Link"/>
+    <parent link="rh6_right_fy32_Link"/>
+    <child link="rh6_right_fy33_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz41_Link">
+  <link name="rh6_right_fy41_Link">
     <inertial>
       <origin xyz="0.0183100300728871 0.00110404217386961 1.44331117438168E-06" rpy="0 0 0"/>
       <mass value="0.0100639366001575"/>
@@ -1440,14 +1464,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz41" type="revolute">
+  <joint name="rh6_right_fy41" type="revolute">
     <origin xyz="-0.0035 -0.009945 0.11099" rpy="3.1416 -1.5446 -1.5708"/>
     <parent link="rh6_right_base_link"/>
-    <child link="rh6_right_fz41_Link"/>
+    <child link="rh6_right_fy41_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.571" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz42_Link">
+  <link name="rh6_right_fy42_Link">
     <inertial>
       <origin xyz="0.0162664773528961 0.000328549470069661 7.07663118645896E-07" rpy="0 0 0"/>
       <mass value="0.00358590544643104"/>
@@ -1469,14 +1493,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz42" type="revolute">
+  <joint name="rh6_right_fy42" type="revolute">
     <origin xyz="0.0419 0.001 0" rpy="0 0 0"/>
-    <parent link="rh6_right_fz41_Link"/>
-    <child link="rh6_right_fz42_Link"/>
+    <parent link="rh6_right_fy41_Link"/>
+    <child link="rh6_right_fy42_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.658" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz43_Link">
+  <link name="rh6_right_fy43_Link">
     <inertial>
       <origin xyz="1.8119656877702E-06 0.00358031778281198 -0.0177332688467031" rpy="0 0 0"/>
       <mass value="0.00260331123444047"/>
@@ -1498,14 +1522,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz43" type="revolute">
+  <joint name="rh6_right_fy43" type="revolute">
     <origin xyz="0.043692 -0.011217 0" rpy="1.5708 1.5704 1.5873"/>
-    <parent link="rh6_right_fz42_Link"/>
-    <child link="rh6_right_fz43_Link"/>
+    <parent link="rh6_right_fy42_Link"/>
+    <child link="rh6_right_fy43_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz51_Link">
+  <link name="rh6_right_fy51_Link">
     <inertial>
       <origin xyz="0.0158684874364952 0.00100262567201714 1.32109851685991E-06" rpy="0 0 0"/>
       <mass value="0.00870573306563604"/>
@@ -1527,14 +1551,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz51" type="revolute">
+  <joint name="rh6_right_fy51" type="revolute">
     <origin xyz="-0.0035 -0.029624 0.10795" rpy="3.1416 -1.4923 -1.5708"/>
     <parent link="rh6_right_base_link"/>
-    <child link="rh6_right_fz51_Link"/>
+    <child link="rh6_right_fy51_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.545" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz52_Link">
+  <link name="rh6_right_fy52_Link">
     <inertial>
       <origin xyz="0.016266391799061 0.000328448417603933 7.642167395433E-07" rpy="0 0 0"/>
       <mass value="0.00358587967262367"/>
@@ -1556,14 +1580,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz52" type="revolute">
+  <joint name="rh6_right_fy52" type="revolute">
     <origin xyz="0.0369 0.001 0" rpy="0 0 0"/>
-    <parent link="rh6_right_fz51_Link"/>
-    <child link="rh6_right_fz52_Link"/>
+    <parent link="rh6_right_fy51_Link"/>
+    <child link="rh6_right_fy52_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="1.658" effort="0" velocity="0"/>
   </joint>
-  <link name="rh6_right_fz53_Link">
+  <link name="rh6_right_fy53_Link">
     <inertial>
       <origin xyz="5.01050953573279E-06 0.0035804146644185 -0.0177336047185497" rpy="0 0 0"/>
       <mass value="0.00260328769879583"/>
@@ -1585,10 +1609,10 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rh6_right_fz53" type="revolute">
+  <joint name="rh6_right_fy53" type="revolute">
     <origin xyz="0.043691 -0.011217 0" rpy="1.5708 1.5695 1.5873"/>
-    <parent link="rh6_right_fz52_Link"/>
-    <child link="rh6_right_fz53_Link"/>
+    <parent link="rh6_right_fy52_Link"/>
+    <child link="rh6_right_fy53_Link"/>
     <axis xyz="0 0 -1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>

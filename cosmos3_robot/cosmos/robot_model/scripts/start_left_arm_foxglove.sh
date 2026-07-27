@@ -29,7 +29,11 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-ros2 launch robot_model left_arm_rviz.launch.py use_rviz:=false &
+# Publish the two AR5 arms with RH6 dexterous hands mounted on their TCPs.
+# Pass the script's isolated DDS domain into the launch so the bridge and all
+# robot publishers are on the same domain.
+ros2 launch robot_model arms_with_dexterous_hands_rviz.launch.py \
+  use_rviz:=true ros_domain_id:="${DOMAIN_ID}" &
 launch_pid=$!
 
 sleep 2

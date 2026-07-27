@@ -1,17 +1,16 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
-from launch.substitutions import Command, LaunchConfiguration
+from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
-#--------------------------------
-# 这个东西没啥用 不用管 rokae官方拿来用的
-#--------------------------------
 def generate_launch_description():
     package_name = 'robot_model'
-    urdf_file_name = 'half_finish.urdf'
-    rviz_config_file = 'half_finish.rviz'
+    # AR5 arms with RH6 dexterous hands mounted directly on both TCP frames.
+    urdf_file_name = 'left_arm_with_wrist_camera.urdf'
+    rviz_config_file = 'dual_hand.rviz'
+    ros_domain_id = LaunchConfiguration('ros_domain_id')
 
     rviz_config_path = os.path.join(get_package_share_directory(package_name), 'rviz', rviz_config_file)
     urdf = os.path.join(
@@ -33,6 +32,17 @@ def generate_launch_description():
         default_value='false',
         description='Use simulation (Gazebo) clock if true'
     ))
+    ld.add_action(DeclareLaunchArgument(
+        'ros_domain_id',
+        default_value='47',
+        description='DDS domain used only by this robot visualization.'
+    ))
+    # Do not discover nodes on the LAN; the non-default DDS domain also
+    # prevents other local robots on the default domain from replacing TF.
+    ld.add_action(SetEnvironmentVariable(
+        name='ROS_DOMAIN_ID', value=ros_domain_id))
+    ld.add_action(SetEnvironmentVariable(
+        name='ROS_LOCALHOST_ONLY', value='1'))
 
     ld.add_action(Node(
         package='robot_state_publisher',
