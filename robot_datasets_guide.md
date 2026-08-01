@@ -2,6 +2,23 @@
 
 这份笔记只放官方入口和最实用的查看方法。
 
+## 一页版整理
+
+| 数据集 / 基准 | 类型 | 规模 / 形态 | 数据格式 / 入口 | 适合先做什么 | 注意点 |
+|---|---|---:|---|---|---|
+| RoboTwin 2.0 | 仿真数据生成器 + 双臂 benchmark | 50 个双臂任务，5 种机器人形态；RoboTwin-OD 含 731 个实例、147 类 | GitHub / docs，兼容 LeRobot 生态 | 看任务配置、仿真采样、domain randomization | 更偏 sim-to-real 与可扩展生成，不是先看真实遥操作数据的首选 |
+| RoboDojo | sim-and-real benchmark / 评测框架 | 任务集合 + 配置系统 | 官网 Wiki / GitHub | 跑 install、download、evaluation 三步 | 更像 benchmark 框架；如果目标是“研究数据字段”，优先级低于 DROID/FMB |
+| DROID | 真实机器人遥操作数据集 | 76k demonstrations，350h，564 scenes，86 tasks | RLDS 1.7TB / raw 8.7TB / debug subset 2GB | 先下 `droid_100`，看 visualizer 和 `openpi/examples/droid/README.md` | 全量很大；先用 debug subset 跑通读取、归一化和动作字段 |
+| FMB | 真实功能性操作数据集 | 22,550 expert trajectories；单物体 full dataset 约 545GB | `.npy` 轨迹文件 / Hugging Face | 下 Assembly 小包，用 `numpy.load(...).item()` 看轨迹 key | 字段偏底层传感和 TCP 状态；适合理解轨迹结构，不一定直接兼容 VLA 训练 |
+
+## 怎么选
+
+- 想最快理解真实机器人数据结构：先看 **DROID**，再看 **FMB**。
+- 想复现 VLA / openpi 风格训练：优先看 **DROID**，因为仓库里已有对应 example。
+- 想看仿真任务、LeRobot 格式和 sim-to-real：看 **RoboTwin 2.0**。
+- 想跑统一 benchmark 或研究评测流程：看 **RoboDojo**。
+- 存储上先按“最小可运行”处理：DROID 用 `droid_100`，FMB 下小包，RoboTwin/RoboDojo 先跑文档里的 quick demo。
+
 ## 1. RoboTwin 2.0
 
 - 官网: https://robotwin-platform.github.io/
