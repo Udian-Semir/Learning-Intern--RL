@@ -1,0 +1,767 @@
+                                             RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+
+                                                       Siyuan Zhou 1 Yilun Du 2 Jiaben Chen 3 Yandong Li 4 Dit-Yan Yeung 1 Chuang Gan 5 6
+                                                                                   https://robovideo.github.io/
+
+
+                                                                  Abstract                                           Task Instruction: "move pepsi can near plastic bottle"
+arXiv:2404.12377v1 [cs.RO] 18 Apr 2024
+
+
+
+
+                                               Text-to-video models have demonstrated substan-
+                                               tial potential in robotic decision-making, enabling
+                                               the imagination of realistic plans of future ac-
+                                               tions as well as accurate environment simulation.
+                                               However, one major issue in such models is gen-                                               AVDC
+                                               eralization – models are limited to synthesizing
+                                               videos subject to language instructions similar to
+                                               those seen at training time. This is heavily limit-
+                                               ing in decision-making, where we seek a powerful
+                                               world model to synthesize plans of unseen com-
+                                               binations of objects and actions in order to solve                                        RoboDreamer
+                                               previously unseen tasks in new environments. To
+                                               resolve this issue, we introduce RoboDreamer, an                Figure 1: Compositional Action Specification. When ex-
+                                               innovative approach for learning a compositional                isting text-to-video models (AVDC (Ko et al., 2023)) are
+                                               world model by factorizing the video generation.                given unusual combinations of language instructions, they
+                                               We leverage the natural compositionality of lan-                are unable to synthesize videos that align accurately with
+                                               guage to parse instructions into a set of lower-                these descriptions. RoboDreamer factorizes the generation
+                                               level primitives, which we condition a set of mod-              compositionally, enabling generalization to novel combina-
+                                               els on to generate videos. We illustrate how this               tions of language.
+                                               factorization naturally enables compositional gen-
+                                               eralization, by allowing us to formulate a new                  generation, where models can generate high-quality videos
+                                               natural language instruction as a combination of                given short text descriptions of motions. Such models have
+                                               previously seen components. We further show                     recently been applied in robotics, demonstrating significant
+                                               how such a factorization enables us to add addi-                potential in the development of policies, dynamic models,
+                                               tional multimodal goals, allowing us to specify                 and planners (Du et al., 2023b; Ajay et al., 2023; Yang et al.,
+                                               a video we wish to generate given both natural                  2023b). However, while natural language commands found
+                                               language instructions and a goal image. Our ap-                 in content generation typically focus on the global motion of
+                                               proach can successfully synthesize video plans                  a scene, natural language actions in robotics revolve around
+                                               on unseen goals in the RT-X, enables successful                 precise spatial rearrangements between objects.
+                                               robot execution in simulation, and substantially
+                                                                                                               Such commands, such as “move pepsi can near plastic bot-
+                                               outperforms monolithic baseline approaches to
+                                                                                                               tle.” remain challenging for existing models. As shown in
+                                               video generation.
+                                                                                                               Fig. 1, existing methods generate a video where pepsi can
+                                                                                                               is placed near green can, failing to accurately capture the
+                                                                                                               specified object relationship. Furthermore, these challenges
+                                         1. Introduction                                                       become even more pronounced in scenarios where language
+                                         Text-to-video models(Ho et al., 2022; Singer et al., 2022; ?)         instructions deviate from those encountered during training
+                                         have seen extensive development in the setting of AI content          time, especially in reinforcement learning datasets where
+                                                                                                               the data are scarce and natural language instructions are
+                                              1
+                                                Hong Kong University of Science and Technology                 highly biased.
+                                         2
+                                          Massachusetts Institute of Technology 3 University of Califor-
+                                         nia, San Diego 4 Google Research 5 University of Massachusetts        In response, we introduce RoboDreamer, a compositional
+                                         Amherst 6 MIT-IBM Watson AI Lab.                                      world model capable of factorizing the video generation
+
+                                                                                                           1
+                          RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+               Language                  Goal Image                                             Generated Video
+                          place water
+   place water               bottle
+  bottle into top
+     drawer                into top
+                            drawer
+                                                           Video
+                                                          Diffusion
+                          move rxbar
+    move rxbar            chocolate
+  chocolate near
+    pepsi can             near pepsi
+                             can
+
+               Language                 Goal Sketch                                             Generated Video
+
+
+Figure 2: Compositional World Models. Given language instructions and multimodal instructions such as goal images and
+sketches, our approach factorizes the generation into a composition of diffusion models conditioned on inferred components.
+This enables our approach to generalize to both new combinations of language and multimodal input.
+
+process by leveraging the inherent compositionality of natu-          at inference time to combine larger and new combinations
+ral language. This model is designed to equip conventional            of both language and multimodal specifications, even if such
+text-to-video generation systems with the ability to perform          paired conditions are not available at training time. Prior ap-
+compositional reasoning. By utilizing a text parser, we dis-          proaches, such as ControlNet (Zhang et al., 2023) introduce
+sect language instructions into a set of primitives, isolating        an additional encoder upon pre-trained text-to-image mod-
+actions and the spatial relationships between objects. These          els to tackle this challenge, but this requires the availability
+parsed components then serve as distinct conditions for a             of paired data across language and multimodal inputs and is
+compositional set of diffusion models, enhancing the ability          limited at inference time to a similar combination of inputs
+of each model to capture the nuances of spatial relationships         that are seen at training time.
+among objects. Additionally, by decomposing a text goal
+                                                                      Our contributions are three-fold.
+into a set of text components, our approach naturally gen-
+eralizes to new combinations of language as long as each                 • We introduce RoboDreamer, a compositional world
+parsed component is in distribution. This is crucially im-                 model capable of factorizing the video generation pro-
+portant in robotics, where there is a lack of systematic data              cess by leveraging the inherent compositionality of
+covering all possible actions in an environment and a need                 natural language.
+to be able to generalize to new unseen actions.
+                                                                         • We illustrate how RoboDreamer also allows us to com-
+While natural language is one representation to specify tasks              bine multimodal information, enabling us to combine
+a robot should accomplish, it is high-level and abstract, mak-             goal information from images with natural language.
+ing it difficult to convey the precise nuances of motion over
+target goal configurations. Other modalities of information,             • We empirically demonstrate that RoboDreamer
+such as a goal image provide much more detailed infor-                     achieves strong alignment with tasks under multi-
+mation on the final goal we wish to achieve. We illustrate                 modal instructions and promising results when deploy-
+how RoboDreamer also enables us to compose across multi-                   ing on robot manipulation tasks.
+modal specifications to flexibly specify goals at inference
+time. In contrast to prior work leveraging video models
+for robotics, we further condition video generation on mul-           2. Background
+timodal task specification goal images and goal sketches.             We first provide background information on how text-
+These modalities, particularly rich in spatial information,           conditioned video generation can serve as a world model for
+play a crucial role in clarifying ambiguities inherent in task        robotics. As an initial step, we introduce formalism on how
+execution instructions. Goal sketches, in particular, offer           text-conditioned video generation can be used for planning
+an intuitive and user-friendly means for spontaneous and              and how we can implement such video level planning in
+on-the-fly task expression, akin to language instructions.            Section 2.1. We then discuss how to execute video plans
+To compose these multimodal specifications together in Ro-            in Section 2.2 and subsequently use videos in a close-loop
+boDreamer, we similarly factorize generation into a set of            manner for task completion.
+models jointly conditioned on language components as well
+as other multimodal components (Figure 2). We illustrate              2.1. Planning with Text-Conditioned Video Generation
+how this approach enables us to richly specify and generate
+                                                                      We formulate task planning as a text-conditioned video
+videos given a large set of specified conditions, enabling us
+                                                                      generation problem using the Unified Predictive Decision
+
+                                                                 2
+                            RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+
+       Language Instruction Parsing                     Video Diffusion
+                                                             �1 = pick
+         pick orange from bottom drawer                       orange
+               and place on counter                                               �� (�� , �|�1 )
+                                                          �2 = from bottom
+                                                               drawer
+                             place on                                             �� (�� , �|�2 )
+                                                           �3 = place on                            composition
+                             counter
+                            VP / action                       counter
+                                                                                  �� (�� , �|�3 )
+                                                         �4 = [goal image]
+                                                                                  �� (�� , �|�4 )
+         pick
+                     from bottom drawer
+        orange
+       VP / action      PP / relation
+                                          Noisy video                             Noise                            Output video
+
+
+Figure 3: Overall framework of RoboDreamer. On the left, We leverage the natural compositionally of language to parse
+instructions into components like action phrases and relation phrases. On the right, we show how RoboDreamer composes
+multiple components.
+
+Process (UPDP) abstraction from (Du et al., 2023b). For-              structure of language into a set of shared components in
+mally, a UPDP is defined as a tuple G = ⟨X , C, H, ρ⟩, where          Section 3.1. Given these shared components, we illustrate
+X denotes the observation space of images, C denotes the              how we can use compositional generation to guarantee gen-
+space of textual task descriptions, H ∈ N is a finite hori-           eralization to novel combinations of these components in
+zon length, and ρ(·|x0 , c) : X × C → ∆(X H ) as a con-               Section 3.2. Finally, we illustrate how such compositional
+ditional video generator which synthesizes a video given              components can be extended to multimodal conditions such
+a text description c and starting observation x0 . Given a            as images or sketches for detailed compositional specifica-
+UPDP G, we then use a trajectory-task conditioned policy              tion of synthesized plans in Section 3.3.
+π(·|{xh }Hh=0 , c) : X
+                       H+1
+                           ×C → ∆(AH ) to infer executable
+actions from synthesized videos.                                      3.1. Text Parser
+Under this decision process, decision-making simply cor-              In contrast to many existing applications of text-to-video
+responds to learning ρ, which synthesizes videos of future            models in AI content creation, in the robotics setting, we
+image states given a natural language instruction c. This             are interested in synthesizing accurate video plans given
+enables us to convert planning directly into a text-to-video          detailed natural language instructions of actions. To solve
+generation problem. To implement this generation problem,             robotics tasks, it is important that video models can synthe-
+we use the video diffusion model and use the base source              size actions that precisely rearrange one object with detailed
+code from (Ko et al., 2023).                                          specified relations with respect to nearby objects, including
+                                                                      rearrangements not seen at training. However, reasoning
+2.2. Executing Videos Plans                                           and correctly generating videos subject to such object spatial
+                                                                      relations is often challenging for existing models, especially
+Given a synthesized video plan τ = [x1 , . . . , xH ], we fol-
+                                                                      on unseen textual descriptions.
+low (Du et al., 2023b) and use an inverse dynamics model
+π(·) to infer actions to execute to realize the video plan. The       To construct models that can more accurately synthesize
+policy takes as input two adjacent image observations xt              spatial relations, we propose to decompose each spatial
+and xt+1 in the synthesized video τ and outputs an action a           relation phrase into a set of compositional components. In
+to execute. We sequentially execute inferred actions starting         particular, the actions of the tasks usually correspond to the
+from x1 to xH−1 in the video.                                         verb phrase in the language and the object spatial relations
+                                                                      correspond to the prepositional phrase after the verb phrase.
+To account for intermediate estimation error from predicting
+                                                                      Thus, given a text action instruction L, we decompose the
+actions using an inverse dynamics model, we predict videos
+                                                                      instruction into a set of verb and propositional phrases li
+in a close-loop manner, where we periodically regenerate
+                                                                      which we use to condition a set of diffusion models on.
+new video plans and execute actions based on this new plan.
+                                                                      Take the task place water bottle into bottom drawer as an
+3. RoboDreamer                                                        example. From this sentence, we parse the verb phrase place
+                                                                      water bottle as the actions of the task and the prepositional
+In this section, we describe our proposed RoboDreamer in              phrase into bottom drawer as the object spatial relations. We
+detail. To construct a compositional world model, Robo-               utilize the pre-trained parser (Kitaev et al., 2018) and the
+Dreamer first uses a text parser to convert the compositional         rule-based approach to parse language instructions based
+
+                                                                  3
+                        RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+                 Task: move rxbar chocolate near green jalapeno chip bag
+
+
+
+         AVDC
+
+
+
+
+   RoboDreamer
+
+
+
+
+                 Task: move 7up can near green can
+
+
+
+         AVDC
+
+
+
+
+   RoboDreamer
+
+
+
+
+                 Task: move green jalapono chip bag near rxbar chocolate
+
+
+
+         AVDC
+
+
+
+
+   RoboDreamer
+
+
+
+
+Figure 4: Zero-Shot Video Generation. Given novel combinations of natural language, RoboDreamer is able to substantially
+more accurately synthesize videos than a single monolithic text-to-video model.
+
+on such characteristics. We provide a schematic of the text         are in distribution. Thus, we can naturally map the composi-
+parsing in Figure 3.                                                tionally of language into the video space through syntactic
+                                                                    parsing.
+3.2. Compositional Generation                                       To train our probabilistic expression in Eqn 1, we can lever-
+Given a natural language instruction L that is parsed into          age the close connection between diffusion models and
+a set of language components {li }i=1:N , we propose to             EBMs (Liu et al., 2022; Du et al., 2023a), and learn a
+formulate our text-to-video model generative model pθ (τ |L)        set of score functions ϵ(τ, t|li ) for each probability den-
+as a product of individual generative models defined on each        sity pθ (τ |li ). The score of the product of the densities in
+parses language subcomponent li                                     Equation
+                                                                          P 1 then corresponds to the average of score func-
+                             Y                1
+                                                                    tions i N1 ϵ(τ, t|li ). We can then train this composite score
+                 pθ (τ |L) ∝      pθ (τ |li ) N .         (1)       function using the standard denoising diffusion training ob-
+                           i=1:N                                    jective
+Note that Eqn 1 naturally enables compositional general-                                      1 X
+                                                                                    LMSE = ∥         ϵ(τt , t|li ) − ϵ∥2 ,     (2)
+ization – given unseen combinations of natural language                                       N i
+instructions L, our probabilistic expression in Eqn 1 will
+generalize perfectly as long as each parsed components li           where τt corresponds to the original video corrupted with t
+
+                                                                4
+                         RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+Algorithm 1 Training                                                    condition our generation of a set of multimodal instructions
+ 1: Input: Diffusion Model ϵθ , Training Step N                         M that M = {mi }i=1:K . We can express the likelihood of
+ 2: for i in 0, . . . , N do                                            our video generative model pθ (τ |L, M ) as the expression
+ 3:   Get training samples τ0 and language instructions                                    Q                         1    Q                         1
+                                                                         pθ (τ |L, M ) ∝       i=1:N pθ (τ |li )
+                                                                                                                   N +K
+                                                                                                                              i=1:K pθ (τ |mi )
+                                                                                                                                                  N +K   , (5)
+      L = {li }
+ 4:   Diffusion timestep t ∼ Uniform({1, . . . , T })                   corresponding to the product of all models. Note that in
+ 5:   ϵ ∼ N√(0, I) √                                                    the above expression, we can at inference time change the
+ 6:   τt ← ᾱt τ0 +P 1 − ᾱt ϵ                                          expression to adjust to both a variable number of modalities
+                 1
+ 7:   LMSE = ∥ |L|    i ϵθ (τt , t|li ) − ϵ∥                            as well as language, in addition to novel combinations of
+ 8:   Take gradient descent step on LMSE                                both modality and language.
+ 9: end for
+                                                                        Based on the above expression, we can derive a variant of
+Algorithm 2 Inference                                                   Eqn 4, to train a set of modality and language conditioned
+                                                                        score functions so that they accurately model the above
+ 1: Input: Diffusion Model ϵθ , Language Instructions L =               expression in Eqn 5 using the objective:
+    {li }, Guidance weight w
+ 2: τT ∼ N (0, I)                                                                  1                           1                                   2
+                                                                                       P                                  P
+                                                                         LMSE = ∥ 2M       i ϵ(τt , t|lSi ) + 2M              j ϵ(τt , t|MSj ) − ϵ∥ ,     (6)
+ 3: for i in T, . . . , 1 do
+ 4:   ϵuncond ← ϵθ (τt , t)                                             Once we have this set of score functions, we can then flexi-
+ 5:   ϵi ← ϵθ (τt , t|li ) P                                            bly compose language and modalities in our compositional
+ 6:   ϵ̃ ←= ϵuncond + i w(ϵθ (τt , t|li ) − ϵuncond )                   world model.
+ 7:   τt−1 ← √1αt (τt − √1−α    t
+                             1−α̂t ϵ̃
+                                      ) + σt z
+ 8: end for                                                                         Model                             Seen         Unseen
+ 9: Return: τ 0                                                                     AVDC                              63.1           46.9
+                                                                                    HiP                               70.3           50.1
+                                                                                    RoboDreamer w/o                   85.5           68.8
+steps of Gaussian noise.
+                                                                                    RoboDreamer                       90.1           81.3
+One issue with directly optimizing Eqn 2 is that while the
+product of the composed distribution is encouraged to model             Table 1: Human Study of Task Instruction Evaluation.
+the distribution of videos given text p(τ |L), each compo-              We present human evaluation for object relations and task
+nent is not necessarily encouraged to accurately model the              completion of generated videos on seen and unseen tasks.
+distribution of videos given relevant textual information in            RoboDreamer outperforms baselines, especially on unseen
+the text snippet li , p(τ |li ). To can encourage the score func-       tasks.
+tion ϵ(τt , t|li ) to capture this objective by also training the
+score function to denoise a video given only the relevant
+                                                                        4. Experiments
+text snippet                                                            In this section, we evaluate the proposed RoboDreamer
+                                            2                           model in terms of its ability to enable generalizable compo-
+                 LMSE = ∥ϵ(τt , t|li ) − ϵ∥ .                (3)
+                                                                        sitional generation. We structure the experiments to answer
+To unify both objectives, we use a hybrid training objective            the following questions:
+where given a set of language components S = {li }i=1:N ,
+we randomly a subset S ′ of M components and train with                 • RQ1: Does RoboDreamer have zero-shot generaliza-
+objective                                                                 tion abilities when encountering unseen task instructions?
+                       1 X                                                (Section 4.1)
+           LMSE = ∥           ϵ(τt , t|lSi ) − ϵ∥2 ,     (4)
+                      M i                                               • RQ2: Does compositional generation of multi-modal in-
+                                                                          structions improve spatial reasoning and object relations?
+Given these learned score functions, at sampling time, we                 (Section 4.1)
+can sample from a novel combination of score functions.
+We illustrate overall training and sampling algorithms for              • RQ3: Can RoboDreamer be deployed on robot manipula-
+our approach in Algorithm 1 and 2.                                        tion tasks? (Section 4.2)
+
+3.3. Multi-modal Composition                                            4.1. Evaluation on Video Generation
+In addition to conditioning our generation at training time             In this section, we take a comprehensive evaluation of Ro-
+on a set of language components {li }i=1:N we can also                  boDreamer’s capabilities in two areas: its effectiveness in
+
+                                                                    5
+                        RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+
+  Task: open
+  middle drawer
+
+
+
+
+   Task: pick
+   apple from
+   top drawer
+
+
+
+
+  Task: knock
+  water bottle
+  over
+
+
+
+
+  Task: pick
+  green can from
+  middle drawer
+
+
+
+
+  Task: close
+  top drawer
+
+
+
+
+  Task:move apple
+  near green can
+
+
+
+
+Figure 5: Multimodal Compositionality. RoboDreamer is able to compose multimodal inputs such as goal and sketch
+image conditioning with language instructions and synthesize plausible videos.
+
+generating videos from textual instructions through compo-          approach. To make the comparison fair, we only give lan-
+sitional generation and its adeptness in incorporating multi-       guage instructions to RoboDreamer and all other baselines.
+modal conditions.                                                   For all methods, we use pertaining T5-XXL as text encoder.
+Experimental Setup. We take the real-world robotics                 Metrics. Some works (Girdhar et al., 2023) have demon-
+dataset RT-1 (Brohan et al., 2022) to evaluate video genera-        strated that there are still no adequate metrics to evaluate the
+tion. The dataset consists of various robotic manipulation          alignment between video generation and task instructions.
+tasks, i.e. pick brown chip bag from middle drawer. The             As a result, we conduct human evaluation. Each sample is
+robot is required to detect the middle drawer, pick a brown         rated by at least three persons for their task completion. The
+chip bag, and then place it on the table. Specifically, we          scores are 0, 1, where 0 means the robotic planning in the
+train RoboDreamer on about 70k demonstrations and 500               generated videos is unreasonable or fails to solve tasks and
+different tasks. We randomly select language instructions           1 means the robotic planning is executable and succeeds in
+as unseen test cases for evaluation.                                finishing the tasks.
+Baselines. We compare RoboDreamer with AVDC (Ko                     Implementation Details. The video diffusion model of
+et al., 2023), a video generation model for robotics;               RoboDreamer is built upon AVDC and Imagen (Ho et al.,
+HiP (Ajay et al., 2023), a latent video diffusion model for         2022). We use a spatial-temporal convolution network in
+robotics; RoboDreamer w/o, our model without text-parsing           each ResNet block of U-Net for efficiency. We introduce
+
+                                                                6
+                        RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+the temporal attention layer on the ResNet block. We utilize         tively addresses RQ2, with RoboDreamer’s adeptness at
+a three-stage cascaded diffusion model for super-resolution.         integrating multi-modal instructions, RoboDreamer has a
+We use a similar tiling approach to enhance temporal consis-         more nuanced understanding and execution of tasks.
+tency. Since the background of the all frames in one video
+should be consistent, we concatenate the input condition                     Model                   Human ↑      FVD ↓
+frame to the all noisy frames before feeding into U-Net.
+                                                                             AVDC                       46.9       517.1
+We use pre-trained models to encode multi-modal instruc-                     RoboDreamer (t)            81.3       487.8
+tions. We use the frozen T5-XXL text encoder (Raffel et al.,                 RoboDreamer (t+s)          94.7       454.7
+2020) for processing natural language instructions, which                    RoboDreamer (t+i)          95.8       444.3
+enables us to generate contextual embeddings. We borrow
+the pre-trained image encoder from VQVAE of Stable Diffu-            Table 2: Evaluation on Multi-Modal Generation. Ro-
+sion (Rombach et al., 2022) for goal image and goal sketch           boDreamer (t+s) and RoboDreamer (t+i) achieve strong
+instructions. The pre-trained downsampling encoder can               performance on human evaluation and good video quality.
+be fast to extract spatial information for tasks and enhance
+efficiency. All modality embeddings will be fed into Per-            4.2. Evaluation on Robotic Planning
+ceiverSampler (Jaegle et al., 2021), an architecture designed
+                                                                     Finally, our examination extends to the practical applicabil-
+for general inputs and outputs. The outputs will be inte-
+                                                                     ity of RoboDreamer in robotic planning tasks. We investi-
+grated into the U-net by introducing a cross-attention layer
+                                                                     gate whether synthesized videos of RoboDreamer can do
+into the ResNet blocks.
+                                                                     robotic planning.
+Zero-shot Generalization. We first evaluate that the text-
+                                                                     Experimental Setup. We conduct experiments on RL-
+parsing approach and compositional generation method
+                                                                     Bench (James et al., 2020). The agent captures observations
+bring zero-shot generalization abilities when facing unseen
+                                                                     as RGB images using multi-view cameras and controls a
+task instructions. The results, as highlighted in Table 1, re-
+                                                                     robotic arm with seven degrees of freedom (7 DoF) on
+veal a significant enhancement in the model’s performance.
+                                                                     RLBench. The environment is constructed to mimic real-
+Through human evaluation, it becomes evident that our
+                                                                     world conditions, featuring high dimensionality in both ob-
+approach greatly improves the task alignment of video gen-
+                                                                     servation and action spaces, which presents a significant
+eration. This underscores the efficacy of RoboDreamer
+                                                                     challenge. There are 74 challenging vision-based robotic
+in understanding and executing unseen task instructions,
+                                                                     learning tasks whose categories vary from tool-using tasks,
+thereby answering RQ1. As is illustrated in Figure 4, the
+                                                                     and pick-and-place tasks to long-term planning tasks. We
+baseline method AVDC and HiP fail to accurately infer
+                                                                     follow the setting of previous works (Guhur et al., 2023) to
+the spatial relationship between objects, incorrectly plac-
+                                                                     use macro-steps, which will make the environment focus
+ing them in the wrong positions. In contrast, our method
+                                                                     more on robot planning. We only consider RGB images
+successfully deduces these relationships, positioning the
+                                                                     from the front camera as observations, which makes RL-
+objects correctly according to the given instructions. By
+                                                                     Bench much more challenging. For a fair comparison, we
+factorizing textual instructions into primitive components,
+                                                                     don’t add goal images as instructions.
+RoboDreamer could successfully generalize to unseen task
+instructions by formulating them into combinations of seen           Baselines. We consider three baselines:
+components.
+                                                                        • Image-BC, an imitation learning approach given obser-
+Multi-modal Generation. Subsequently, we evaluate the                     vation, states, and goal description.
+multi-modal-conditioned video generation capabilities of                • Hiveformer (Guhur et al., 2023): a transformer-based
+RoboDreamer, focusing on how it leverages visual infor-                   approach that integrates natural language instructions,
+mation to enhance spatial reasoning of video generation.                  multi-view scene observations, and a full history of
+Specifically, we take the final frames as goal images and gen-            observations and actions.
+erate the goal sketches by annotators of ControlNet (Zhang              • UniPi (Du et al., 2023b): a method that utilizes text-to-
+et al., 2023). RoboDreamer’s variations were methodically                 video models to generate videos and inverse dynamic
+tested: RoboDreamer (t) is given only language description,               policy to predict actions based on the videos. We use
+RoboDreamer (t+i) is given language description and the                   the open-source text-to-video codebase from (Ko et al.,
+goal image, and RoboDreamer (t+s) is given language de-                   2023) to train models.
+scription and goal sketches. As is shown in Table 2, with
+the additional help of goal image instructions or sketch in-         Robot Planning. According to the results presented in Ta-
+structions, RoboDreamer can achieve strong alignment on              ble 3, RoboDreamer achieves superior task success rates
+both human evaluations. This experimental result affirma-            compared to baseline models even if RoboDreamer is only
+                                                                     given observation from single cameras. As expected, Image-
+
+                                                                 7
+                         RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+         Model              lamp off     lamp on     stack blocks        lift block    take shoes     close box    Average
+         Image-BC             60.1         47.0            0                 0             0            82.4          31.6
+         Hiveformer           81.2         53.2           10.6              28.2          1.0           90.8          44.2
+         UniPi                70.6         47.1           7.1               23.3          3.8           94.1          41.0
+         RoboDreamer          96.3         51.9           18.5              22.2          10.5          96.3          49.3
+
+Table 3: Success Rate on RLBench. The highest success rate demonstrates that the videos generated by RoboDreamer are
+feasible and executable and help robot planning.
+
+BC and Hiveformer are struggling in the long-term tasks                by transferring pre-trained general T2V models to domain-
+that are stack blocks and take shoes. On the other hand,               specific T2V tasks with small amount of training data, how-
+RoboDreamer achieves a success rate of 15% with the help               ever, it fails to genelize on unseen tasks or text descriptions.
+of predicted future observations. UniPi performs poorly as it          HIP (Ajay et al., 2023) aims to solve long-horizon tasks,
+does not align with task instructions well. The strong perfor-         however, it composes several expert foundation models. Dif-
+mance of RoboDreamer demonstrates that the synthesized                 ferent from previous research, our approach demonstrates
+videos are significantly beneficial for robot planning.                how to construct compositional video-based world mod-
+                                                                       els, decomposing the learned probability distribution during
+5. Related Work                                                        training into a series of compositional components. This
+                                                                       empowers us to seamlessly generate videos subject to com-
+Diffusion Models for Decision-Making Diffusion models                  binations of detailed language and image specifications that
+have emerged as promising generative models for many                   are not seen during training.
+decision-making tasks (Chi et al., 2023; Pearce et al., 2023;
+Zhang et al., 2022; Liang et al., 2023; Huang et al., 2023; Liu        6. Conclusion
+et al., 2023b; Zhou et al., 2023). Some works (Janner et al.,
+2022; Ajay et al., 2022) train diffusion model on low-level            In conclusion, we introduce RoboDreamer, a compositional
+state and action space on simulation data. They generate tra-          approach to video generation that generalizes significantly
+jectories to do robot planning. While these works are hard             better than prior works in video generation in robotics. By
+to generalize to high-dimensional data like videos, some               leveraging the natural compositionality of language and
+works (Du et al., 2023b; Ko et al., 2023) formulated the               integrating multi-modal instructions, RoboDreamer demon-
+robot planning as a text-to-video generation problem. Most             strates significant advancements in generating videos that ac-
+similar to our work, UniPi (Du et al., 2023b) trains a video           curately capture complex spatial relationships and object in-
+diffusion model to predict future frames and gets actions              teractions. Experimental results verify RoboDreamer’s capa-
+with inverse dynamic policy. On the other hand, AVDC (Ko               bilities in zero-shot generalization, multi-modal-conditioned
+et al., 2023) utilizes pre-trained flow networks to predict            video generation, and its potential application in robotic ma-
+the actions. However, previous works are limited in gen-               nipulation tasks.
+eralization to unseen tasks. Our text-parsing approach and
+                                                                       Limitations Although RoboDreamer exhibits strong perfor-
+composition abilities can enhance the zero-shot generaliza-
+                                                                       mance in robot planning tasks, it has several limitations. (1)
+tion abilities of RoboDreamer.
+                                                                       While many robot tasks often use information from multiple
+Compositional Generation Our work is also related to                   cameras, RoboDreamer is limited to single camera views
+the compositional generation method (Bar et al., 2020; Liu             and is unable to consider the multi-camera information.
+et al., 2022; Yu et al., 2022; Ajay et al., 2023; Yang et al.,         This limits the applicability of RoboDreamer to many
+2023a; Zhang et al., 2023; Shi et al., 2023; Hu et al., 2024;          robotics tasks that require detailed 3D information. We
+Du et al., 2023a). The promising solutions are based on                believe that exploring how to add 3D inductive biases into
+those works (Nie et al., 2021; Du et al., 2021; Liu et al.,            RoboDreamer to consider multi-camera information is a
+2021; Gkanatsios et al., 2023) that probabilistically comb-            rich source of future research. (2) RoboDreamer generalizes
+ing different generative models for jointly generating out-            poorly to many real-world images we tested. We believe that
+puts. Most of them works have delved into the realm of                 existing robotics datasets are still limited in diversity, and
+compositional text (Deng et al., 2020; Liu et al., 2023a) and          it may interesting to explore joint co-training of our compo-
+image generation (Shi et al., 2023; Liu et al., 2022; Du et al.,       sitional model across both robotics data and existing videos
+2023a). However, when it comes to the domain of text-to-               on YouTube to improve generalization. (3) The capabilities
+video generation, the extent of exploration of composition-            of video generation models, including ours, are constrained
+ality is comparatively limited. In text-to-video generation,           when it comes to moving-camera settings. Addressing these
+VideoAdapter (Yang et al., 2023a) introduces a novel setting           challenges necessitates the approach to stabilizing.
+
+                                                                   8
+                        RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+Impact Statement                                                      Misra, I. Emu video: Factorizing text-to-video gener-
+                                                                      ation by explicit image conditioning. arXiv preprint
+This paper presents work whose goal is to advance the field           arXiv:2311.10709, 2023.
+of Machine Learning. There are many potential societal
+consequences of our work, none of which we feel must be             Gkanatsios, N., Jain, A., Xian, Z., Zhang, Y., Atkeson, C.,
+specifically highlighted here.                                        and Fragkiadaki, K. Energy-based models as zero-shot
+                                                                      planners for compositional scene rearrangement. arXiv
+References                                                            preprint arXiv:2304.14391, 2023.
+
+Ajay, A., Du, Y., Gupta, A., Tenenbaum, J., Jaakkola,               Guhur, P.-L., Chen, S., Pinel, R. G., Tapaswi, M., Laptev,
+  T., and Agrawal, P. Is conditional generative model-                I., and Schmid, C. Instruction-driven history-aware poli-
+  ing all you need for decision-making? arXiv preprint                cies for robotic manipulations. In Conference on Robot
+  arXiv:2211.15657, 2022.                                            Learning, pp. 175–187. PMLR, 2023.
+
+Ajay, A., Han, S., Du, Y., Li, S., Gupta, A., Jaakkola,             Ho, J., Chan, W., Saharia, C., Whang, J., Gao, R., Gritsenko,
+  T., Tenenbaum, J., Kaelbling, L., Srivastava, A., and               A., Kingma, D. P., Poole, B., Norouzi, M., Fleet, D. J.,
+  Agrawal, P. Compositional foundation models for hi-                 et al. Imagen video: High definition video generation
+  erarchical planning. arXiv preprint arXiv:2309.08587,               with diffusion models. arXiv preprint arXiv:2210.02303,
+  2023.                                                               2022.
+
+Bar, A., Herzig, R., Wang, X., Rohrbach, A., Chechik,               Hu, H., Chan, K. C., Su, Y.-C., Chen, W., Li, Y., Sohn, K.,
+  G., Darrell, T., and Globerson, A. Compositional                    Zhao, Y., Ben, X., Gong, B., Cohen, W., et al. Instruct-
+  video synthesis with action graphs. arXiv preprint                  imagen: Image generation with multi-modal instruction.
+  arXiv:2006.15327, 2020.                                             arXiv preprint arXiv:2401.01952, 2024.
+
+Brohan, A., Brown, N., Carbajal, J., Chebotar, Y., Dabis, J.,       Huang, S., Wang, Z., Li, P., Jia, B., Liu, T., Zhu, Y., Liang,
+  Finn, C., Gopalakrishnan, K., Hausman, K., Herzog, A.,             W., and Zhu, S.-C. Diffusion-based generation, optimiza-
+  Hsu, J., et al. Rt-1: Robotics transformer for real-world           tion, and planning in 3d scenes. In Proceedings of the
+  control at scale. arXiv preprint arXiv:2212.06817, 2022.            IEEE/CVF Conference on Computer Vision and Pattern
+                                                                     Recognition, pp. 16750–16761, 2023.
+Chi, C., Feng, S., Du, Y., Xu, Z., Cousineau, E., Burch-
+  fiel, B., and Song, S. Diffusion policy: Visuomotor               Jaegle, A., Borgeaud, S., Alayrac, J.-B., Doersch, C.,
+  policy learning via action diffusion. arXiv preprint                Ionescu, C., Ding, D., Koppula, S., Zoran, D., Brock,
+  arXiv:2303.04137, 2023.                                             A., Shelhamer, E., et al. Perceiver io: A general archi-
+                                                                      tecture for structured inputs & outputs. arXiv preprint
+Deng, Y., Bakhtin, A., Ott, M., Szlam, A., and Ranzato, M.            arXiv:2107.14795, 2021.
+  Residual energy-based models for text generation. arXiv
+  preprint arXiv:2004.11714, 2020.                                  James, S., Ma, Z., Arrojo, D. R., and Davison, A. J. Rlbench:
+                                                                      The robot learning benchmark & learning environment.
+Du, Y., Li, S., Sharma, Y., Tenenbaum, J., and Mordatch, I.           IEEE Robotics and Automation Letters, 5(2):3019–3026,
+  Unsupervised learning of compositional energy concepts.             2020.
+ Advances in Neural Information Processing Systems, 34:
+ 15608–15620, 2021.                                                 Janner, M., Du, Y., Tenenbaum, J. B., and Levine, S. Plan-
+                                                                      ning with diffusion for flexible behavior synthesis. arXiv
+Du, Y., Durkan, C., Strudel, R., Tenenbaum, J. B., Diele-             preprint arXiv:2205.09991, 2022.
+  man, S., Fergus, R., Sohl-Dickstein, J., Doucet, A., and
+  Grathwohl, W. S. Reduce, reuse, recycle: Compositional            Kitaev, N., Cao, S., and Klein, D. Multilingual con-
+  generation with energy-based diffusion models and mcmc.             stituency parsing with self-attention and pre-training.
+  In International Conference on Machine Learning, pp.                arXiv preprint arXiv:1812.11760, 2018.
+  8489–8510. PMLR, 2023a.
+                                                                    Ko, P.-C., Mao, J., Du, Y., Sun, S.-H., and Tenenbaum, J. B.
+Du, Y., Yang, M., Dai, B., Dai, H., Nachum, O., Tenenbaum,            Learning to act from actionless videos through dense
+  J. B., Schuurmans, D., and Abbeel, P. Learning universal            correspondences, 2023.
+  policies via text-guided video generation. arXiv preprint
+  arXiv:2302.00111, 2023b.                                          Liang, Z., Mu, Y., Ding, M., Ni, F., Tomizuka, M., and
+                                                                      Luo, P. Adaptdiffuser: Diffusion models as adaptive
+Girdhar, R., Singh, M., Brown, A., Duval, Q., Azadi, S.,              self-evolving planners. In International Conference on
+  Rambhatla, S. S., Shah, A., Yin, X., Parikh, D., and                Machine Learning, 2023.
+
+                                                                9
+                        RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+Liu, G., Feng, Z., Gao, Y., Yang, Z., Liang, X., Bao, J., He,         Yang, M., Du, Y., Dai, B., Schuurmans, D., Tenenbaum,
+  X., Cui, S., Li, Z., and Hu, Z. Composable text controls              J. B., and Abbeel, P. Probabilistic adaptation of text-to-
+  in latent space with ODEs. In Bouamor, H., Pino, J., and              video models. arXiv preprint arXiv:2306.01872, 2023a.
+  Bali, K. (eds.), Proceedings of the 2023 Conference on
+  Empirical Methods in Natural Language Processing, pp.               Yang, M., Du, Y., Ghasemipour, K., Tompson, J., Schuur-
+  16543–16570, Singapore, December 2023a. Association                   mans, D., and Abbeel, P. Learning interactive real-world
+  for Computational Linguistics. doi: 10.18653/v1/2023.                 simulators. arXiv preprint arXiv:2310.06114, 2023b.
+  emnlp-main.1030. URL https://aclanthology.                          Yu, W., Chen, W., Yin, S., Easterbrook, S., and Garg, A.
+  org/2023.emnlp-main.1030.                                             Modular action concept grounding in semantic video pre-
+                                                                        diction. In Proceedings of the IEEE/CVF Conference
+Liu, N., Li, S., Du, Y., Tenenbaum, J., and Torralba, A.
+                                                                        on Computer Vision and Pattern Recognition, pp. 3605–
+  Learning to compose visual relations. Advances in Neural
+                                                                        3614, 2022.
+  Information Processing Systems, 34:23166–23178, 2021.
+                                                                      Zhang, E., Lu, Y., Wang, W. Y., and Zhang, A. Lad: Lan-
+Liu, N., Li, S., Du, Y., Torralba, A., and Tenenbaum, J. B.             guage augmented diffusion for reinforcement learning.
+  Compositional visual generation with composable dif-                  In Second Workshop on Language and Reinforcement
+  fusion models. In European Conference on Computer                     Learning, 2022.
+  Vision, pp. 423–439. Springer, 2022.
+                                                                      Zhang, L., Rao, A., and Agrawala, M. Adding conditional
+Liu, W., Du, Y., Hermans, T., Chernova, S., and Paxton, C.              control to text-to-image diffusion models. In Proceedings
+  Structdiffusion: Language-guided creation of physically-              of the IEEE/CVF International Conference on Computer
+  valid structures using unseen objects. In RSS 2023, 2023b.            Vision, pp. 3836–3847, 2023.
+Nie, W., Vahdat, A., and Anandkumar, A. Controllable and              Zhou, S., Du, Y., Zhang, S., Xu, M., Shen, Y., Xiao, W.,
+  compositional generation with latent-space energy-based               Yeung, D.-Y., and Gan, C. Adaptive online replanning
+  models. Advances in Neural Information Processing                     with diffusion models. arXiv preprint arXiv:2310.09629,
+  Systems, 34:13497–13510, 2021.                                        2023.
+
+Pearce, T., Rashid, T., Kanervisto, A., Bignell, D., Sun,
+  M., Georgescu, R., Macua, S. V., Tan, S. Z., Momenne-
+  jad, I., Hofmann, K., et al. Imitating human behaviour
+  with diffusion models. arXiv preprint arXiv:2301.10677,
+  2023.
+
+Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S.,
+  Matena, M., Zhou, Y., Li, W., and Liu, P. J. Exploring
+  the limits of transfer learning with a unified text-to-text
+  transformer. The Journal of Machine Learning Research,
+  21(1):5485–5551, 2020.
+
+Rombach, R., Blattmann, A., Lorenz, D., Esser, P., and
+  Ommer, B. High-resolution image synthesis with latent
+  diffusion models. In Proceedings of the IEEE/CVF con-
+  ference on computer vision and pattern recognition, pp.
+ 10684–10695, 2022.
+
+Shi, C., Ni, H., Li, K., Han, S., Liang, M., and Min, M. R.
+  Exploring compositional visual generation with latent
+  classifier guidance. In Proceedings of the IEEE/CVF
+  Conference on Computer Vision and Pattern Recognition,
+  pp. 853–862, 2023.
+
+Singer, U., Polyak, A., Hayes, T., Yin, X., An, J., Zhang, S.,
+  Hu, Q., Yang, H., Ashual, O., Gafni, O., et al. Make-a-
+  video: Text-to-video generation without text-video data.
+  arXiv preprint arXiv:2209.14792, 2022.
+
+                                                                 10
+                        RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+A. Experimental Details
+A.1. Video Diffusion
+We list the details about our method RoboDreamer as follows.
+
+1. Our method RoboDreamer is built upon AVDC (Ko et al., 2023) and Imagen (Ho et al., 2022) and we utilize a three-stage
+   cascaded diffusion model for super-resolution.
+2. For video diffusion models, we use 4 ResNetBlock within U-Net and each block is composed of spatial-temporal
+   convolution layers and cross-attention layers with conditioned instructions.
+3. We introduce temporal-attention layers in the last block within the encoder of U-Net and the first block within the decoder.
+4. The base channel is 128 and the channel multiplier is [1, 2, 4, 8].
+5. We train our video diffusion models with 256 batch size and 5e-5 learning rate on about 100 V100 GPUs.
+6. We train base video diffusion models with 8 × 64 × 64 videos and then subsequently upsample to 8 × 128 × 128 and
+   8 × 256 × 256 videos.
+
+A.2. Other Details
+1. RT-1 Dataset: RT-1 Dataset has about 70k demonstrations with an average length of 44. We sample one every 5 frames.
+   There are about 500 tasks. We list some categories of tasks here: pick, pick ... from ..., place, open, close, knock and pull.
+2. Inverse Dynamics Model: Inverse dynamics model is trained to predict actions given two adjacent frames and the current
+   state. We use ResNet18 as the backbone followed by an MLP layer. This model is trained using Adam optimizer with a
+   learning rate 1e-4 for 10K steps.
+3. RLBench: We use Franka Panda arm with Franka gripper on RLBench. It has seven degrees of freedom (7 DoF) and
+   8-dimensional action space, along with an additional gripper state.
+4. Human Evaluation: Each sample is rated by at least three human raters and we evaluate about 128 samples in total
+   including more than 20 text prompts.
+
+B. Additional Results
+B.1. Visualization on RLBench
+We visualize the tasks on RLBench in Figure 6.
+
+
+
+
+                                           Figure 6: Visualization on RLBench.
+
+
+B.2. More Results on Video Generation
+More video generation results are shown in the website (https://robovideo.github.io/).
+
+B.3. IMO Metrics
+We use pretrained GroundingDino to detect the bounding boxes of the target objects. The IMO results (Iou of the bounding
+boxes) are shown in Table 4. The results are consistent with Human Evaluation. This supports the effectiveness of our
+approach in achieving better alignment through multi-modal inputs.
+
+                                                              11
+                     RoboDreamer: Learning Compositional World Models for Robot Imagination
+
+
+
+
+      Task: move sponge
+      near coke can
+
+
+      Task: open middle
+      drawer
+
+
+      Task: move 7up can
+      near white bowl
+
+
+     Task: pick watter
+     bottle from top drawer
+
+
+
+      Task: pick banana
+      from white bowl
+
+
+      Task: close top
+      drawer
+
+
+      Task: move apple
+      near 7up can
+
+      Task: pick orange
+      from white bowl
+
+
+
+                                          Figure 7: Video Generation.
+
+
+
+
+                                Model                Human ↑     FVD ↓    IMO↑
+                                RoboDreamer (t)        81.3      487.8     63.5
+                                RoboDreamer (t+s)      94.7      454.7     72.5
+                                RoboDreamer (t+i)      95.8      444.3     78.1
+
+Table 4: Evaluation on Multi-Modal Generation. RoboDreamer (t+s) and RoboDreamer (t+i) achieve strong performance
+on human evaluation and good video quality.
+
+
+
+
+                                                       12
+

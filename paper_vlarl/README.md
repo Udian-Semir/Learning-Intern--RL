@@ -9,6 +9,15 @@
 | `03_QGF_Test-Time_Gradient_Guidance_of_Flow_Policies_2026.pdf` | *Test-Time Gradient Guidance of Flow Policies in Reinforcement Learning* | https://arxiv.org/abs/2606.11087 |
 | `04_STARE-VLA_Progressive_Stage-Aware_Reinforcement_2025.pdf` | *STARE-VLA: Progressive Stage-Aware Reinforcement for Fine-Tuning Vision-Language-Action Models* | https://arxiv.org/abs/2512.05107 |
 
+## 中文精读
+
+| 论文 | 中文精读 |
+| --- | --- |
+| ReinFlow | [01_ReinFlow_论文中文精读.md](./01_ReinFlow_论文中文精读.md) |
+| DPPO | [02_DPPO_论文中文精读.md](./02_DPPO_论文中文精读.md) |
+| QGF | [03_QGF_论文中文精读.md](./03_QGF_论文中文精读.md) |
+| StARe-VLA | [04_STARE-VLA_论文中文精读.md](./04_STARE-VLA_论文中文精读.md) |
+
 ## 尚未能唯一核验的名称
 
 `SAC-Flow`、`πRL`、`SA-VLA`、`FlowPRO`、`DSRL` 和 `RL-VLA³`。
