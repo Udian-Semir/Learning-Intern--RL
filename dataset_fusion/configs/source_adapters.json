@@ -1,0 +1,121 @@
+{
+  "schema_version": "source_adapter_config_v1",
+  "canonical_action_spec": "cartesian_delta_abs_gripper_v1",
+  "target_fps": 10.0,
+  "adapters": {
+    "droid": {
+      "enabled_when": [
+        "raw RLDS spec matches the declared field map",
+        "Franka URDF, TCP definition and units are versioned",
+        "joint action semantic is selected explicitly"
+      ],
+      "raw_container": "RLDS / TFDS trajectory",
+      "raw_field_map": {
+        "views": {
+          "base_0": "observation.exterior_image_1_left",
+          "base_1": "observation.exterior_image_2_left",
+          "left_wrist_0": "observation.wrist_image_left"
+        },
+        "joint_position": "observation.joint_position",
+        "gripper_position": "observation.gripper_position",
+        "joint_position_action": "action_dict.joint_position",
+        "joint_velocity_action": "action_dict.joint_velocity",
+        "gripper_action": "action_dict.gripper_position",
+        "language": [
+          "language_instruction",
+          "language_instruction_2",
+          "language_instruction_3"
+        ]
+      },
+      "action_modes": {
+        "joint_position": {
+          "raw_semantics": "absolute joint target plus absolute gripper target",
+          "conversion": "FK current and target joint configurations, then encode robot-base Cartesian delta"
+        },
+        "joint_velocity": {
+          "raw_semantics": "joint velocity plus gripper target",
+          "conversion": "requires verified action dt and controller convention; never reinterpret directly as a position target"
+        }
+      },
+      "view_policy": "Keep both exterior cameras and wrist camera. Training-time view selection is not part of conversion.",
+      "required_metadata": [
+        "raw episode id",
+        "robot joint order",
+        "URDF hash",
+        "TCP frame",
+        "source timestamps",
+        "camera calibration if available"
+      ]
+    },
+    "fmb": {
+      "enabled_when": [
+        "trajectory dictionary keys have been inspected on the downloaded version",
+        "TCP pose reference frame, units and rotation representation are known",
+        "action semantics have been classified as target, delta or velocity"
+      ],
+      "raw_container": "NumPy .npy trajectory dictionary",
+      "candidate_raw_field_map": {
+        "views": {
+          "base_0": "obs/side_1",
+          "base_1": "obs/side_2",
+          "left_wrist_0": "obs/wrist_1",
+          "right_wrist_0": "obs/wrist_2"
+        },
+        "tcp_pose": "obs/tcp_pose",
+        "tcp_velocity": "obs/tcp_vel",
+        "tcp_force": "obs/tcp_force",
+        "tcp_torque": "obs/tcp_torque",
+        "action": "action",
+        "primitive": "primitive",
+        "object_metadata": "object_id / object_info"
+      },
+      "action_conversion": "Prefer consecutive TCP pose differences only after verifying frame and pose encoding. Keep force, torque, primitive and object metadata as optional streams with masks.",
+      "required_metadata": [
+        "raw file path",
+        "robot model",
+        "camera slot mapping",
+        "TCP frame",
+        "timestamp or source fps",
+        "action semantic declaration"
+      ]
+    },
+    "robotwin": {
+      "enabled_when": [
+        "robot, task, embodiment and native bundle version are frozen",
+        "joint target semantics are recorded as next_target_joint_position",
+        "camera calibration and coordinate convention are preserved"
+      ],
+      "raw_container": "Native zip bundle containing HDF5 plus instructions/scene/seed sidecars",
+      "native_layout": {
+        "hdf5": "data/episodeN.hdf5",
+        "instructions": "instructions/episodeN.json with seen/unseen prompt lists",
+        "scene": "scene_info.json",
+        "seed": "seed.txt",
+        "raw_trajectory": "_traj_data/episodeN.pkl"
+      },
+      "native_action": "joint_action/vector is sampled drive-target qpos. Canonical training target is vector[t+1], not velocity or Cartesian delta.",
+      "camera_handling": "Decode NUL-padded JPEG bytes. Preserve intrinsic_cv, extrinsic_cv and cam2world_gl separately; they have different coordinate conventions.",
+      "timing": "No raw timestamp. Record timestamp_source=synthetic_nominal_15hz; do not represent it as hardware synchronization.",
+      "action_conversion": "Cartesian delta requires embodiment-specific URDF, TCP definition and transformed endpose convention. Preserve next_target_joint_position as provenance.",
+      "arm_mapping": "vector order is left_arm, left_gripper, right_arm, right_gripper. Map explicitly for every embodiment."
+    },
+    "robodojo": {
+      "enabled_when": [
+        "source format is selected: native HDF5, LeRobot v3 joint, or LeRobot v3 EE",
+        "benchmark test tasks and layout seeds are excluded from training",
+        "camera transform direction is retained when geometry fields are used"
+      ],
+      "raw_container": "Official sim/real HDF5 or published LeRobot v2.1/v3.0 exports",
+      "available_variants": {
+        "sim_hdf5": "35 tasks, ARX X5, joint state/action plus richer camera metadata",
+        "lerobot_v30_joint": "25 Hz, 14D joint target/state and three RGB videos",
+        "lerobot_v30_ee": "25 Hz, 16D EE pose plus gripper target/state",
+        "real_hdf5": "multiple embodiments and real teleoperation trajectories"
+      },
+      "native_action": "Joint export is absolute target [left_6,left_gripper,right_6,right_gripper]. EE export is per arm [x,y,z,qw,qx,qy,qz,gripper].",
+      "camera_handling": "Runtime may call the transform extrinsic_matrix or extrinsics_matrix. Normalize key names but preserve transform_direction; HDF5 decoder color order must be verified before RGB conversion.",
+      "action_conversion": "Use HDF5 or EE export for geometry-aware conversion. Do not invent EE pose or calibration from joint-only LeRobot v3.",
+      "split_rule": "Hold out benchmark task and layout seed combinations; keep sim and real domain labels."
+    }
+  }
+}

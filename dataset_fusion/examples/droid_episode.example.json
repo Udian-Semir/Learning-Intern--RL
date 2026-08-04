@@ -1,0 +1,146 @@
+{
+  "schema_version": "robot_episode_v1",
+  "episode_id": "droid:2023-12-04_example_000001",
+  "source": {
+    "dataset": "droid",
+    "raw_episode_id": "2023-12-04_example_000001",
+    "split": "train",
+    "adapter_version": "droid_rlds_to_robot_episode_v1@0.1.0",
+    "source_format": "rlds_droid_1.0.1",
+    "domain": "real",
+    "data_source": "teleop",
+    "raw_uri": "gs://gresearch/robotics/droid/1.0.1/...",
+    "simulated": false
+  },
+  "robot": {
+    "robot_id": "franka_panda",
+    "embodiment_id": "single_arm_7dof_parallel_gripper",
+    "arm_count": 1,
+    "base_frame": "panda_link0",
+    "tcp_frames": [
+      "panda_hand_tcp"
+    ],
+    "urdf_uri": "robots/franka_panda.urdf",
+    "joint_names": [
+      "panda_joint1",
+      "panda_joint2",
+      "panda_joint3",
+      "panda_joint4",
+      "panda_joint5",
+      "panda_joint6",
+      "panda_joint7"
+    ],
+    "controller_type": "joint_position_target"
+  },
+  "task": {
+    "text": "Place the object in the target container.",
+    "original_texts": [
+      "Place the object in the target container.",
+      "Put the object into the container."
+    ],
+    "task_id": "unknown",
+    "language_mask": true,
+    "success": true,
+    "termination_reason": null
+  },
+  "action_spec": {
+    "name": "cartesian_delta_abs_gripper_v1",
+    "dimension": 14,
+    "reference_frame": "robot_base",
+    "fields": [
+      "arm_0.dx_m",
+      "arm_0.dy_m",
+      "arm_0.dz_m",
+      "arm_0.drx_axis_angle_rad",
+      "arm_0.dry_axis_angle_rad",
+      "arm_0.drz_axis_angle_rad",
+      "arm_0.gripper_target_0_to_1",
+      "arm_1.dx_m",
+      "arm_1.dy_m",
+      "arm_1.dz_m",
+      "arm_1.drx_axis_angle_rad",
+      "arm_1.dry_axis_angle_rad",
+      "arm_1.drz_axis_angle_rad",
+      "arm_1.gripper_target_0_to_1"
+    ],
+    "normalization_id": "franka_panda_cartesian_delta_v1",
+    "native_representation": "absolute_joint_target_plus_absolute_gripper",
+    "native_reference_frame": "franka_joint_space",
+    "native_rotation_repr": "none",
+    "conversion_method": "FK from current and absolute target joint positions using versioned Franka URDF and TCP offset"
+  },
+  "streams": {
+    "target_fps": 10.0,
+    "frame_count": 183,
+    "views": [
+      {
+        "slot": "base_0",
+        "raw_key": "observation.exterior_image_1_left",
+        "camera_frame": "exterior_camera_1",
+        "mount": "fixed",
+        "image_mask": true,
+        "calibration_mask": false,
+        "intrinsics_uri": null,
+        "extrinsics_uri": null
+      },
+      {
+        "slot": "base_1",
+        "raw_key": "observation.exterior_image_2_left",
+        "camera_frame": "exterior_camera_2",
+        "mount": "fixed",
+        "image_mask": true,
+        "calibration_mask": false,
+        "intrinsics_uri": null,
+        "extrinsics_uri": null
+      },
+      {
+        "slot": "left_wrist_0",
+        "raw_key": "observation.wrist_image_left",
+        "camera_frame": "wrist_camera",
+        "mount": "left_wrist",
+        "image_mask": true,
+        "calibration_mask": false,
+        "intrinsics_uri": null,
+        "extrinsics_uri": null
+      }
+    ],
+    "proprio_fields": [
+      {
+        "name": "joint_position_rad",
+        "dimension": 7,
+        "unit": "rad",
+        "mask_column": "joint_position_mask"
+      },
+      {
+        "name": "gripper_position",
+        "dimension": 1,
+        "unit": "source_normalized_position",
+        "mask_column": "gripper_position_mask"
+      }
+    ],
+    "masks": {
+      "time_mask_column": "time_mask",
+      "action_mask_column": "action_mask",
+      "image_mask_columns": [
+        "image_mask.base_0",
+        "image_mask.base_1",
+        "image_mask.left_wrist_0"
+      ]
+    }
+  },
+  "storage": {
+    "frame_table_uri": "data/droid/2023-12-04_example_000001.parquet",
+    "frame_table_format": "parquet",
+    "video_uris": {
+      "base_0": "videos/droid/2023-12-04_example_000001/base_0.mp4",
+      "base_1": "videos/droid/2023-12-04_example_000001/base_1.mp4",
+      "left_wrist_0": "videos/droid/2023-12-04_example_000001/left_wrist_0.mp4"
+    }
+  },
+  "quality": {
+    "eligible_for_action_loss": true,
+    "rejection_reasons": [],
+    "max_sync_error_s": 0.02,
+    "action_conversion_verified": false
+  }
+}

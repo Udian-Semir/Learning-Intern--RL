@@ -1,0 +1,168 @@
+{
+  "schema_version": "robot_frame_table_v1",
+  "storage_format": "parquet",
+  "one_row_means": "one synchronized observation and its next action target",
+  "canonical_action_spec": "cartesian_delta_abs_gripper_v1",
+  "columns": [
+    {
+      "name": "episode_id",
+      "arrow_type": "string",
+      "required": true,
+      "description": "Stable canonical episode id"
+    },
+    {
+      "name": "frame_index",
+      "arrow_type": "int64",
+      "required": true,
+      "description": "Index after canonical resampling"
+    },
+    {
+      "name": "observation_timestamp_s",
+      "arrow_type": "float64",
+      "required": true,
+      "description": "Canonical observation time; may be nominal if timestamp_source says so"
+    },
+    {
+      "name": "action_timestamp_s",
+      "arrow_type": "float64",
+      "required": true,
+      "description": "Time represented by the action target"
+    },
+    {
+      "name": "timestamp_source",
+      "arrow_type": "string",
+      "required": true,
+      "allowed_values": [
+        "hardware",
+        "source_recorded",
+        "nominal_fps",
+        "synthetic_estimated"
+      ]
+    },
+    {
+      "name": "sync_error_s",
+      "arrow_type": "float32",
+      "required": true,
+      "description": "Maximum image/state/action synchronization error for this row"
+    },
+    {
+      "name": "observation.joint_position",
+      "arrow_type": "fixed_size_list<float32,16>",
+      "required": true,
+      "description": "Padded native joint positions; values are meaningful only where joint_position_mask is true"
+    },
+    {
+      "name": "observation.joint_position_mask",
+      "arrow_type": "fixed_size_list<bool,16>",
+      "required": true
+    },
+    {
+      "name": "observation.joint_velocity",
+      "arrow_type": "fixed_size_list<float32,16>",
+      "required": true
+    },
+    {
+      "name": "observation.joint_velocity_mask",
+      "arrow_type": "fixed_size_list<bool,16>",
+      "required": true
+    },
+    {
+      "name": "observation.tcp_pose_xyzw",
+      "arrow_type": "fixed_size_list<float32,14>",
+      "required": true,
+      "description": "Two 7D TCP slots in xyz+qx+qy+qz order after an explicitly declared conversion"
+    },
+    {
+      "name": "observation.tcp_pose_mask",
+      "arrow_type": "fixed_size_list<bool,14>",
+      "required": true
+    },
+    {
+      "name": "observation.force_torque",
+      "arrow_type": "fixed_size_list<float32,12>",
+      "required": true,
+      "description": "Optional two-arm [force3, torque3] values; preserve source frame in episode metadata"
+    },
+    {
+      "name": "observation.force_torque_mask",
+      "arrow_type": "fixed_size_list<bool,12>",
+      "required": true
+    },
+    {
+      "name": "image_frame_index.base_0",
+      "arrow_type": "int64",
+      "required": true,
+      "description": "Video frame index, -1 only when image_mask.base_0 is false"
+    },
+    {
+      "name": "image_mask.base_0",
+      "arrow_type": "bool",
+      "required": true
+    },
+    {
+      "name": "image_frame_index.base_1",
+      "arrow_type": "int64",
+      "required": true
+    },
+    {
+      "name": "image_mask.base_1",
+      "arrow_type": "bool",
+      "required": true
+    },
+    {
+      "name": "image_frame_index.left_wrist_0",
+      "arrow_type": "int64",
+      "required": true
+    },
+    {
+      "name": "image_mask.left_wrist_0",
+      "arrow_type": "bool",
+      "required": true
+    },
+    {
+      "name": "image_frame_index.right_wrist_0",
+      "arrow_type": "int64",
+      "required": true
+    },
+    {
+      "name": "image_mask.right_wrist_0",
+      "arrow_type": "bool",
+      "required": true
+    },
+    {
+      "name": "action.canonical",
+      "arrow_type": "fixed_size_list<float32,14>",
+      "required": true,
+      "description": "[arm_0 delta xyz, delta axis-angle, gripper target, arm_1 equivalent]"
+    },
+    {
+      "name": "action_mask",
+      "arrow_type": "fixed_size_list<bool,14>",
+      "required": true,
+      "description": "False dimensions are padding/missing and are excluded from loss and statistics"
+    },
+    {
+      "name": "time_mask",
+      "arrow_type": "bool",
+      "required": true,
+      "description": "False only for padded action-chunk rows, never inferred from action value"
+    },
+    {
+      "name": "action_native_uri",
+      "arrow_type": "string",
+      "required": true,
+      "description": "Sidecar/raw reference preserving the original action representation"
+    },
+    {
+      "name": "action_conversion_valid",
+      "arrow_type": "bool",
+      "required": true
+    }
+  ],
+  "invariants": [
+    "A false action_mask dimension must not contribute to normalization or action loss.",
+    "A padded numeric zero is not evidence of a valid no-op action.",
+    "Every row has an episode-level action_spec and coordinate convention in its metadata sidecar.",
+    "Video frame index is valid only when the matching image_mask is true."
+  ]
+}

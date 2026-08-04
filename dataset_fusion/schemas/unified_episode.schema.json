@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learning-intern-rl.local/schemas/unified-episode-v1.json",
+  "title": "Canonical robot episode metadata v1",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "source", "robot", "task", "action_spec", "streams", "storage", "quality"],
+  "properties": {
+    "schema_version": {"const": "robot_episode_v1"},
+    "episode_id": {"type": "string", "pattern": "^[a-z0-9_.-]+:[A-Za-z0-9_.-]+$"},
+    "source": {
+      "type": "object",
+      "required": ["dataset", "raw_episode_id", "split", "adapter_version", "source_format", "domain", "data_source"],
+      "properties": {
+        "dataset": {"enum": ["droid", "fmb", "robotwin", "robodojo"]},
+        "raw_episode_id": {"type": "string"},
+        "split": {"enum": ["train", "val", "test", "unassigned"]},
+        "adapter_version": {"type": "string"},
+        "source_format": {"type": "string"},
+        "domain": {"enum": ["real", "sim", "mixed", "unknown"]},
+        "data_source": {"enum": ["teleop", "expert", "datagen", "policy_rollout", "unknown"]},
+        "raw_uri": {"type": "string"},
+        "environment_id": {"type": "string"},
+        "simulated": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "robot": {
+      "type": "object",
+      "required": ["robot_id", "embodiment_id", "arm_count", "base_frame", "tcp_frames"],
+      "properties": {
+        "robot_id": {"type": "string"},
+        "embodiment_id": {"type": "string"},
+        "arm_count": {"type": "integer", "minimum": 1, "maximum": 2},
+        "base_frame": {"type": "string"},
+        "tcp_frames": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"type": "string"}},
+        "urdf_uri": {"type": "string"},
+        "urdf_sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"},
+        "joint_names": {"type": "array", "items": {"type": "string"}},
+        "controller_type": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "task": {
+      "type": "object",
+      "required": ["text", "language_mask"],
+      "properties": {
+        "text": {"type": "string"},
+        "original_texts": {"type": "array", "items": {"type": "string"}},
+        "task_id": {"type": "string"},
+        "task_family": {"type": "string"},
+        "variant": {"type": "string"},
+        "language_mask": {"type": "boolean"},
+        "success": {"type": ["boolean", "null"]},
+        "termination_reason": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "action_spec": {
+      "type": "object",
+      "required": ["name", "dimension", "reference_frame", "fields", "normalization_id", "native_representation"],
+      "properties": {
+        "name": {"const": "cartesian_delta_abs_gripper_v1"},
+        "dimension": {"const": 14},
+        "reference_frame": {"const": "robot_base"},
+        "fields": {"type": "array", "minItems": 14, "maxItems": 14, "items": {"type": "string"}},
+        "normalization_id": {"type": "string"},
+        "native_representation": {"type": "string"},
+        "native_reference_frame": {"type": "string"},
+        "native_rotation_repr": {"type": "string"},
+        "conversion_method": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "streams": {
+      "type": "object",
+      "required": ["target_fps", "frame_count", "views", "proprio_fields", "masks"],
+      "properties": {
+        "target_fps": {"type": "number", "exclusiveMinimum": 0},
+        "frame_count": {"type": "integer", "minimum": 1},
+        "views": {"type": "array", "items": {"$ref": "#/$defs/view"}},
+        "proprio_fields": {"type": "array", "items": {"$ref": "#/$defs/proprio_field"}},
+        "masks": {"$ref": "#/$defs/masks"}
+      },
+      "additionalProperties": true
+    },
+    "calibration": {
+      "type": "object",
+      "properties": {
+        "calibration_id": {"type": ["string", "null"]},
+        "camera_transforms": {"type": "array", "items": {"$ref": "#/$defs/camera_transform"}}
+      },
+      "additionalProperties": true
+    },
+    "storage": {
+      "type": "object",
+      "required": ["frame_table_uri", "frame_table_format"],
+      "properties": {
+        "frame_table_uri": {"type": "string"},
+        "frame_table_format": {"const": "parquet"},
+        "video_uris": {"type": "object", "additionalProperties": {"type": "string"}},
+        "checksum_sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"}
+      },
+      "additionalProperties": true
+    },
+    "quality": {
+      "type": "object",
+      "required": ["eligible_for_action_loss", "rejection_reasons"],
+      "properties": {
+        "eligible_for_action_loss": {"type": "boolean"},
+        "rejection_reasons": {"type": "array", "items": {"type": "string"}},
+        "max_sync_error_s": {"type": ["number", "null"], "minimum": 0},
+        "action_conversion_verified": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "view": {
+      "type": "object",
+      "required": ["slot", "raw_key", "camera_frame", "mount", "image_mask"],
+      "properties": {
+        "slot": {"enum": ["base_0", "base_1", "left_wrist_0", "right_wrist_0"]},
+        "raw_key": {"type": "string"},
+        "camera_frame": {"type": "string"},
+        "mount": {"enum": ["fixed", "left_wrist", "right_wrist", "unknown"]},
+        "image_mask": {"type": "boolean"},
+        "calibration_mask": {"type": "boolean"},
+        "intrinsics_uri": {"type": ["string", "null"]},
+        "extrinsics_uri": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "proprio_field": {
+      "type": "object",
+      "required": ["name", "dimension", "unit", "mask_column"],
+      "properties": {
+        "name": {"type": "string"},
+        "dimension": {"type": "integer", "minimum": 1},
+        "unit": {"type": "string"},
+        "mask_column": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "masks": {
+      "type": "object",
+      "required": ["time_mask_column", "action_mask_column"],
+      "properties": {
+        "time_mask_column": {"const": "time_mask"},
+        "action_mask_column": {"const": "action_mask"},
+        "image_mask_columns": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "camera_transform": {
+      "type": "object",
+      "required": ["camera_frame", "target_frame", "direction", "valid"],
+      "properties": {
+        "camera_frame": {"type": "string"},
+        "target_frame": {"type": "string"},
+        "direction": {"enum": ["camera_to_world", "world_to_camera", "camera_to_base", "base_to_camera", "unknown"]},
+        "valid": {"type": "boolean"},
+        "matrix_uri": {"type": ["string", "null"]},
+        "convention": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

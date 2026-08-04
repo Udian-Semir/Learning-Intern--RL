@@ -1,13 +1,15 @@
 # 机器人数据集速查
 
+> 四源完整接口、JSON Schema、adapter 配置和融合流程见 [`dataset_fusion/README.md`](dataset_fusion/README.md)。本页保留快速入口；涉及原始字段和动作语义时，以 `dataset_fusion/source_interfaces.md` 为准。
+
 这份笔记只放官方入口和最实用的查看方法。
 
 ## 一页版整理
 
 | 数据集 / 基准 | 类型 | 规模 / 形态 | 数据格式 / 入口 | 适合先做什么 | 注意点 |
 |---|---|---:|---|---|---|
-| RoboTwin 2.0 | 仿真数据生成器 + 双臂 benchmark | 50 个双臂任务，5 种机器人形态；RoboTwin-OD 含 731 个实例、147 类 | GitHub / docs，兼容 LeRobot 生态 | 看任务配置、仿真采样、domain randomization | 更偏 sim-to-real 与可扩展生成，不是先看真实遥操作数据的首选 |
-| RoboDojo | sim-and-real benchmark / 评测框架 | 任务集合 + 配置系统 | 官网 Wiki / GitHub | 跑 install、download、evaluation 三步 | 更像 benchmark 框架；如果目标是“研究数据字段”，优先级低于 DROID/FMB |
+| RoboTwin 2.0 | 仿真数据生成器 + 双臂 benchmark | 50 个双臂任务，5 种机器人形态；RoboTwin-OD 含 731 个实例、147 类 | 原生 HDF5 + JSON/PKL sidecars；可转 LeRobot | 看任务配置、仿真采样、domain randomization | 原始发布不是 LeRobot；joint target、endpose、标定和语言 sidecar 要一起读取 |
+| RoboDojo | sim-and-real benchmark + 公开轨迹数据 | 公开 sim/real HDF5 及 LeRobot v2/v3；完整 benchmark 任务更多 | 官网 Wiki / GitHub / download 脚本 | 固定任务/embodiment/action export 后训练或评测 | joint 14D 与 EE 16D 是不同版本；评测必须按 task/layout seed 隔离 |
 | DROID | 真实机器人遥操作数据集 | 76k demonstrations，350h，564 scenes，86 tasks | RLDS 1.7TB / raw 8.7TB / debug subset 2GB | 先下 `droid_100`，看 visualizer 和 `openpi/examples/droid/README.md` | 全量很大；先用 debug subset 跑通读取、归一化和动作字段 |
 | FMB | 真实功能性操作数据集 | 22,550 expert trajectories；单物体 full dataset 约 545GB | `.npy` 轨迹文件 / Hugging Face | 下 Assembly 小包，用 `numpy.load(...).item()` 看轨迹 key | 字段偏底层传感和 TCP 状态；适合理解轨迹结构，不一定直接兼容 VLA 训练 |
 
@@ -116,8 +118,8 @@ gsutil -m cp -r gs://gresearch/robotics/droid_raw <target_dir>
 
 原因:
 - DROID 和 FMB 最容易先看懂真实机器人数据结构
-- RoboTwin 2.0 适合看仿真/LeRobot 格式
-- RoboDojo 更偏 benchmark 和评测流程
+- RoboTwin 2.0 适合看原生仿真 HDF5、双臂动作和逐帧相机标定
+- RoboDojo 可同时用于 benchmark 和训练，但必须明确选择 HDF5、joint LeRobot 或 EE LeRobot 版本
 
 ## 最快的本地查看法
 

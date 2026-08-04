@@ -1,0 +1,59 @@
+{
+  "schema_version": "robot_mixture_v1",
+  "dataset_id": "droid_fmb_robotwin_robodojo_cartesian_delta_v1",
+  "target_action_spec": "cartesian_delta_abs_gripper_v1",
+  "target_fps": 10.0,
+  "sampling": {
+    "strategy": "dataset_then_task_balanced",
+    "source_count_exponent_alpha": 0.5,
+    "weights_must_sum_to_one": true
+  },
+  "sources": [
+    {
+      "dataset": "droid",
+      "enabled": true,
+      "adapter_config": "configs/source_adapters.json#/adapters/droid",
+      "sampling_weight": 0.35,
+      "episode_count": 0
+    },
+    {
+      "dataset": "fmb",
+      "enabled": true,
+      "adapter_config": "configs/source_adapters.json#/adapters/fmb",
+      "sampling_weight": 0.3,
+      "episode_count": 0
+    },
+    {
+      "dataset": "robotwin",
+      "enabled": true,
+      "adapter_config": "configs/source_adapters.json#/adapters/robotwin",
+      "sampling_weight": 0.25,
+      "episode_count": 0
+    },
+    {
+      "dataset": "robodojo",
+      "enabled": true,
+      "adapter_config": "configs/source_adapters.json#/adapters/robodojo",
+      "sampling_weight": 0.1,
+      "episode_count": 0
+    }
+  ],
+  "splits": {
+    "train": "splits/train_episode_ids.jsonl",
+    "val": "splits/val_episode_ids.jsonl",
+    "test": "splits/test_episode_ids.jsonl"
+  },
+  "storage": {
+    "episode_manifest_root": "episodes",
+    "parquet_root": "data",
+    "video_root": "videos",
+    "lerobot_export_root": "lerobot_export"
+  },
+  "gates_before_physical_merge": [
+    "All enabled sources use the same target action spec and target fps.",
+    "Every frame has time_mask and action_mask.",
+    "All invalid action dimensions are excluded from statistics and loss.",
+    "Every action conversion has a versioned robot model or controller declaration.",
+    "Episode-level train, val and test splits are disjoint."
+  ]
+}

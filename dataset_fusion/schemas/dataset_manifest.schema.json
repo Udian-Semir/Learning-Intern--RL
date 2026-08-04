@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learning-intern-rl.local/schemas/dataset-manifest-v1.json",
+  "title": "Canonical robot mixture manifest v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "target_action_spec",
+    "target_fps",
+    "sources",
+    "splits",
+    "storage"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "robot_mixture_v1"
+    },
+    "dataset_id": {
+      "type": "string"
+    },
+    "target_action_spec": {
+      "const": "cartesian_delta_abs_gripper_v1"
+    },
+    "target_fps": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["dataset", "enabled", "adapter_config", "sampling_weight"],
+        "properties": {
+          "dataset": {
+            "enum": ["droid", "fmb", "robotwin", "robodojo"]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "adapter_config": {
+            "type": "string"
+          },
+          "sampling_weight": {
+            "type": "number",
+            "minimum": 0
+          },
+          "episode_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "splits": {
+      "type": "object",
+      "required": ["train", "val", "test"],
+      "properties": {
+        "train": {
+          "type": "string"
+        },
+        "val": {
+          "type": "string"
+        },
+        "test": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "storage": {
+      "type": "object",
+      "required": ["episode_manifest_root", "parquet_root", "video_root"],
+      "properties": {
+        "episode_manifest_root": {
+          "type": "string"
+        },
+        "parquet_root": {
+          "type": "string"
+        },
+        "video_root": {
+          "type": "string"
+        },
+        "lerobot_export_root": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
