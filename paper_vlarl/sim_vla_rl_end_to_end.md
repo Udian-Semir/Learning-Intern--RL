@@ -148,6 +148,115 @@ bash evaluations/run_eval.sh \
 
 训练指标看 `env/success_once`；可在 YAML 中开启 `video_cfg.save_video` 保存评测视频。RLinf 文档报告的一个参考结果是，OpenVLA-OFT 在七个 RoboTwin 任务上的平均成功率由 SFT 的 28.79% 提高到 GRPO 的 86.16%，但这不是用户自采数据的保证值。
 
+### 6. 采数据的最小执行卡
+
+如果你现在的目标只是“先把自己的仿真数据采起来”，建议先按这套最小闭环做，不要一上来追求全任务、多相机、多 embodiment：
+
+```text
+单任务
+  -> 单机器人
+  -> 单相机或双相机
+  -> 脚本/规划器专家
+  -> 成功轨迹导出
+  -> 转成统一数据格式
+  -> 先做 100 到 500 条成功 episode
+```
+
+第一版采集最好只保留两类任务：
+
+```text
+容易成功的结构化任务
+  抓取、放置、搬运、开关、按钮、插拔
+
+容易判定成功的任务
+  物体进入目标区域、姿态对齐、夹爪闭合、目标被抬起
+```
+
+如果任务本身很难规划，先不要硬上纯 RL，先把 `privileged_state` 专家跑通，再把视觉观测和真机风格慢慢加回来。
+
+### 7. 推荐的数据目录
+
+建议每个数据集都显式保留下面这些文件，不要只存一堆裸 HDF5：
+
+```text
+dataset_root/
+  meta/
+    dataset.json
+    tasks.json
+    sensors.json
+  episodes/
+    episode_000001/
+      observations.npz
+      actions.npz
+      rewards.npz
+      dones.npz
+      info.json
+      video.mp4
+  splits/
+    train.txt
+    val.txt
+    test.txt
+```
+
+其中 `dataset.json` 至少要写清：
+
+```json
+{
+  "name": "my_robot_sim_v1",
+  "robot": "custom_arm",
+  "action_type": "ee_delta",
+  "action_dim": 7,
+  "state_dim": 16,
+  "fps": 20,
+  "camera_names": ["front", "wrist"],
+  "language_format": "instruction",
+  "success_definition": "object_in_target_zone"
+}
+```
+
+### 8. 采集循环的标准模板
+
+你可以把第一版采集器写成下面这个逻辑：
+
+```python
+for seed in seeds:
+    obs = env.reset(seed=seed)
+    done = False
+    while not done:
+        action = expert(obs, privileged_state=env.get_privileged_state())
+        next_obs, reward, terminated, truncated, info = env.step(action)
+
+        writer.add({
+            "obs": obs,
+            "action": action,
+            "reward": reward,
+            "terminated": terminated,
+            "truncated": truncated,
+            "info": info,
+        })
+
+        obs = next_obs
+        done = terminated or truncated
+```
+
+这里最重要的是两件事：
+
+1. 进入训练集的 `obs` 只能是模型未来真的会看到的东西，不能把仿真真值偷偷塞进去。
+2. `action_type`、坐标系、控制频率、夹爪语义必须固定记录，否则后面混数据会炸。
+
+### 9. 你现在最该做的顺序
+
+```text
+1. 选一个任务
+2. 先只做仿真 reset / step / success 判定
+3. 接一个脚本或规划器专家
+4. 采 100 条成功轨迹
+5. 导出统一格式
+6. 再决定要不要接 VLA SFT
+```
+
+如果你愿意，我下一步可以直接把“你自己的机器人仿真采集规范”继续往下写成一份可落地的 `dataset schema + adapter` 草案。
+
 ## 路线 B：RoboCasa365 + RLinf
 
 ### 代码与论文
@@ -284,3 +393,208 @@ RoboTwin/RoboCasa/ManiSkill 采集与转换
 3. 再做 RoboCasa365 或 Isaac Lab Mimic，解决多相机、不同 embodiment 和 action adapter。
 4. 最后把 RL-VLA³ 接到已经统一的数据和环境接口上，做多 GPU 异步吞吐实验。
 
+## 对自有机器人数据的直接价值
+
+### 1. 用少量真机示范换取大量仿真试错
+
+自己的机器人只需要先采集少量高质量示范，用来让 π0/π0.5 学会基本动作顺序；大量失败尝试交给 RoboTwin 仿真完成。这样可以减少真机磨损、人工操作时间和安全风险。
+
+### 2. 把机器人差异压缩到 adapter
+
+VLA、PPO、rollout 和分布式训练代码可以复用。你主要需要实现：
+
+```text
+observation.images.*  -> 相机图像
+observation.state     -> 关节/末端状态
+action                -> 你的控制器输入
+prompt                -> 任务语言
+reward/termination    -> 成功判定和终止条件
+```
+
+例如自己的 7DoF 单臂可以统一为 `[dx, dy, dz, droll, dpitch, dyaw, gripper]`，再在仿真 wrapper 中转换为实际关节控制命令。
+
+### 3. 强制明确 action 物理语义
+
+自己的数据可能同时存在 absolute joint、joint delta、EE delta、velocity 和 torque。路线 A 要求在进入 SFT 前记录：
+
+```text
+action_type、action_dim、坐标系、控制频率、gripper 语义、chunk 长度
+```
+
+这可以避免把形状相同但含义不同的动作直接混合，也方便后续接入 DROID、FMB、RoboTwin、RoboDojo 等数据源。
+
+### 4. 用仿真状态自动产生 reward
+
+只要你的自有机器人仿真环境能判断物体位置、接触、姿态或是否进入目标区域，就可以自动生成 `reward/success/termination`，不需要逐帧人工标注“好动作”。真机数据负责行为先验，仿真状态负责 RL 信号。
+
+### 5. 在仿真中注入 sim-to-real 扰动
+
+应把真实设备的变化加入 RoboTwin 或自定义仿真环境：相机内外参误差、关节零位误差、控制延迟、动作噪声、物体摩擦和光照纹理。RL 训练得到的策略因此能在一组扰动内保持成功，而不是只记住一个理想场景。
+
+### 6. 直接测试 VLA 的 action chunk 部署因素
+
+π0.5 一次输出未来一段动作块。路线 A 能在仿真中调试 `chunk length`、重规划频率、控制器延迟、动作平滑和限幅，这些因素通常比单步 BC loss 更直接地决定真机长时序成功率。
+
+### 7. 训练/评测 seed 分离，结果更可信
+
+RLinf 为训练和评测提供独立 seed 文件。自有机器人做实验时也应保留这条规则，否则模型可能记住固定初始物体位置，造成成功率虚高。
+
+## 自有机器人必须补的部分
+
+路线 A 复用的是训练基础设施，不会自动替你完成机器人建模。至少需要补齐：
+
+```text
+URDF/仿真资产和控制器
+观测字典与相机同步
+action 到控制器的映射
+success/reward/termination
+HDF5/LeRobot 转换器
+真机相机 topic、关节顺序、控制频率 adapter
+动作限幅、碰撞检测和急停
+```
+
+建议顺序是：单臂单任务单相机 -> 100-500 条示范 SFT -> 32-64 个并行环境 PPO -> 加入延迟和视觉/动力学随机化 -> 独立 seed 评测 -> sim-to-real。
+
+## 能否直接复刻自己的工作环境并自动部署到真机
+
+可以，这条路线在研究上是成立的，通常叫 **digital twin + sim-to-real**。理想目标是：
+
+```text
+自己的机器人 CAD/URDF/USD
+  -> 仿真工作站和任务
+  -> 自动专家轨迹
+  -> VLA SFT
+  -> 仿真在线 RL
+  -> 同一 checkpoint 的真机 rollout
+```
+
+但“直接部署”必须满足观测和动作接口一致。实际部署通常存在两个转换函数：
+
+```text
+o_real = T_obs(real_camera, real_joint_state, calibration)
+a_real = T_action(a_policy, controller_rate, limits, calibration)
+```
+
+只有当 `T_obs` 和 `T_action` 已经把真机传感器、坐标系、关节顺序、控制频率、动作限幅对齐后，才可以复用同一个策略权重。RLinf/RoboTwin 负责训练闭环，不会自动完成这两个转换。
+
+### 哪些情况下可行性高
+
+- 刚性物体、桌面抓取、放置、搬运、按钮和开关等任务。
+- 机器人运动学、关节限制、夹爪控制模式已知。
+- 仿真和真机使用相同的 action 语义，例如都使用 EE delta 或 joint delta。
+- 相机安装位置、分辨率、帧率和曝光能被标定或固定。
+- 能通过真实日志做系统辨识，估计延迟、摩擦、控制误差和传感器噪声。
+
+### 哪些情况下不能指望零适配
+
+- 布料、液体、软体物体、强接触和遮挡严重的任务。
+- 真机控制器内部有未知滤波、插值、阻抗环或安全限幅。
+- 仿真使用绝对关节 target，而真机接口实际接收速度/力矩。
+- 训练只有纯渲染图像，没有真实相机风格或少量真实数据校准。
+
+### 对自有机器人的推荐实现
+
+如果你的机器人不是 ALOHA 双臂，不建议强行把所有内容改成 RoboTwin 的 14 维接口。更稳妥的做法是：
+
+```text
+Isaac Lab / ManiSkill / SAPIEN
+  -> 自定义机器人和工作站数字孪生
+  -> 自定义 Gymnasium env + success reward
+  -> RLinf env wrapper
+  -> OpenPI π0.5 或 GR00T SFT/RL
+  -> 真机 observation/action adapter
+```
+
+如果你的机器人就是 ALOHA 或 RoboTwin 已支持的 embodiment，则直接复用 RoboTwin 的任务和 RLinf 配置，工作量会小很多。
+
+### 推荐的迁移顺序
+
+```text
+1. 先让仿真和真机使用同一套 action/state 字段。
+2. 用真机采集少量示范，确认 VLA 在仿真中能完成基本任务。
+3. 用仿真成功 reward 做 PPO/GRPO，加入视觉和动力学随机化。
+4. 用真实传感器日志校准相机、关节零位、控制延迟和动作噪声。
+5. 先在真机低速度、低力矩、空场景下做 1-step/短 horizon 测试。
+6. 逐步放开动作范围，再进入完整任务 rollout。
+```
+
+因此结论是：**仿真自动生成数据并训练，再用相同 VLA 权重启动真机，是可行且值得做的路线；但必须保留一个明确的 sim-to-real adapter 和安全验证阶段，不能把仿真 action 文件直接当作真机控制命令。**
+
+## 当前目标修正：只在仿真里自动采数据
+
+如果当前目标是“复刻自己的机器人和工作环境，然后在仿真中自动生成训练数据”，那么 **第一阶段不需要 checkpoint**。
+
+`checkpoint` 只是已经训练好的模型权重，例如：
+
+```text
+SFT checkpoint：VLA 学会专家示范后的权重
+RL checkpoint：VLA 在仿真奖励上继续优化后的权重
+```
+
+它们用于“让模型自己 rollout”或“从已有策略继续训练”，不是仿真数据采集的必需品。
+
+### 仿真采数据真正需要的东西
+
+```text
+数字孪生机器人 + 工作台/物体
+        ↓
+任务 reset 和成功判定
+        ↓
+专家生成器（规划器 / 状态机 / 特权状态 RL）
+        ↓
+仿真执行器
+        ↓
+图像、state、action、语言、seed、成功标签
+```
+
+专家生成器可以有三种形式：
+
+1. **脚本 + IK/运动规划器**：适合抓取、搬运、放置、按按钮等结构化任务，最稳定，最适合作为第一版自动采集器。
+2. **使用仿真特权状态训练的 PPO/SAC policy**：输入物体位姿、接触和机器人真实状态，先学一个 state policy，再用它执行时同步保存相机图像，得到视觉数据。
+3. **少量遥操作示范 + Mimic/轨迹扩增**：当任务很难用规则规划时，先录少量示范，再在仿真中改变物体位置和场景生成更多轨迹。
+
+### RoboTwin 的 `collect_data.sh` 属于哪一种
+
+RoboTwin 的采集脚本不是依赖一个 VLA checkpoint，而是调用任务脚本和规划后端（例如 `mplib`/`curobo`），搜索可行 seed、执行专家动作并保存轨迹。因此路线 A 的正确顺序是：
+
+```text
+RoboTwin/自定义仿真专家
+  -> 自动采集成功轨迹
+  -> LeRobot 转换
+  -> π0/π0.5 SFT 得到 checkpoint
+  -> RLinf 在仿真中用 VLA checkpoint 做在线 RL
+```
+
+### 自己的机器人需要实现的采集接口
+
+至少要有以下接口，RLinf 后续才能接上：
+
+```python
+obs = env.reset(seed=seed)
+action = expert(obs, privileged_state=state)
+next_obs, reward, terminated, truncated, info = env.step(action)
+writer.add(obs=obs, action=action, language=task, info=info)
+```
+
+专家可以读取 `privileged_state`，但写入 VLA 数据的 observation 不应包含仿真专属的物体真值，否则训练出的 VLA 会发生信息泄漏。采集时应同时保存：
+
+```text
+相机 RGB/深度（按最终 VLA 输入选择）
+机器人 state
+真正发送给控制器的 action
+任务语言
+episode seed 和随机化参数
+success、terminated、truncated
+```
+
+### 什么时候才需要 checkpoint
+
+```text
+阶段 0：规划器/状态机采集数据        不需要 checkpoint
+阶段 1：用数据训练 π0/π0.5            产生 SFT checkpoint
+阶段 2：用 SFT VLA 在仿真 rollout     需要 checkpoint
+阶段 3：RLinf PPO/GRPO 在线微调        从 SFT checkpoint 开始
+阶段 4：评测或真机部署                 使用最终 RL checkpoint
+```
+
+所以你现在要做的是“先把自有机器人仿真和专家采集器打通”，而不是先找一个 checkpoint。checkpoint 会在第一批数据采完并完成 SFT 之后才出现。
